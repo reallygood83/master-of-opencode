@@ -41,8 +41,8 @@ var import_obsidian3 = require("obsidian");
 
 // src/types.ts
 var DEFAULT_SETTINGS = {
-  provider: "default",
-  model: "claude-3-5-sonnet-latest",
+  provider: "anthropic",
+  model: "claude-sonnet-4-5",
   customApiBaseUrl: "",
   contextWindowLimit: 128e3,
   executionMode: "spawn",
@@ -51,11 +51,21 @@ var DEFAULT_SETTINGS = {
   theme: "adaptive",
   notifications: true,
   favoriteModels: [
-    "anthropic/claude-3-5-sonnet-latest",
-    "openai/gpt-4o",
-    "google/gemini-2.5-flash-exp"
+    "anthropic/claude-sonnet-4-5",
+    "xai/grok-4-1-fast",
+    "google/gemini-3-pro-high"
   ]
 };
+var IMAGE_CAPABLE_MODELS = [
+  "anthropic/claude-sonnet-4-5",
+  "anthropic/claude-opus-4-5",
+  "xai/grok-4-1-fast",
+  "google/gemini-3-pro-high",
+  "google/gemini-3-pro-medium",
+  "google/gemini-3-pro-low",
+  "google/gemini-3-flash",
+  "google/gemini-3-flash-lite"
+];
 
 // src/SettingsTab.ts
 var import_obsidian = require("obsidian");
@@ -974,14 +984,14 @@ var OpenCodeChatView = class extends import_obsidian2.ItemView {
     titleArea.createSpan({ text: "OpenCode", cls: "opencode-title" });
     const modelArea = header.createDiv({ cls: "opencode-header-model" });
     const modelSelector = modelArea.createEl("select", { cls: "opencode-model-selector" });
-    this.plugin.settings.favoriteModels.forEach((model) => {
-      const option = modelSelector.createEl("option", { value: model, text: model });
+    IMAGE_CAPABLE_MODELS.forEach((model) => {
+      const option = modelSelector.createEl("option", { value: model, text: `${model} \u{1F5BC}\uFE0F` });
       if (model === `${this.plugin.settings.provider}/${this.plugin.settings.model}`) {
         option.selected = true;
       }
     });
     const currentModel = `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
-    if (!this.plugin.settings.favoriteModels.includes(currentModel)) {
+    if (!IMAGE_CAPABLE_MODELS.includes(currentModel)) {
       modelSelector.createEl("option", {
         value: currentModel,
         text: currentModel,

@@ -16,8 +16,8 @@ export interface OpenCodeSettings {
 }
 
 export const DEFAULT_SETTINGS: OpenCodeSettings = {
-	provider: 'default',
-	model: 'claude-3-5-sonnet-latest',
+	provider: 'anthropic',
+	model: 'claude-sonnet-4-5',
 	customApiBaseUrl: '',
 	contextWindowLimit: 128000,
 	executionMode: 'spawn',
@@ -26,9 +26,9 @@ export const DEFAULT_SETTINGS: OpenCodeSettings = {
 	theme: 'adaptive',
 	notifications: true,
 	favoriteModels: [
-		'anthropic/claude-3-5-sonnet-latest',
-		'openai/gpt-4o',
-		'google/gemini-2.5-flash-exp'
+		'anthropic/claude-sonnet-4-5',
+		'xai/grok-4-1-fast',
+		'google/gemini-3-pro-high'
 	]
 };
 
@@ -100,3 +100,14 @@ export const PROVIDERS: Record<Provider, { name: string }> = {
 		name: 'Custom'
 	}
 };
+
+export const IMAGE_CAPABLE_MODELS = [
+	'anthropic/claude-sonnet-4-5',
+	'anthropic/claude-opus-4-5',
+	'xai/grok-4-1-fast',
+	'google/gemini-3-pro-high',
+	'google/gemini-3-pro-medium',
+	'google/gemini-3-pro-low',
+	'google/gemini-3-flash',
+	'google/gemini-3-flash-lite'
+];

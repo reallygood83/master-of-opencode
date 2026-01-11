@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, MarkdownRenderer, Menu } from 'obsidian';
 import type OpenCodePlugin from './main';
-import { ChatMessage, ToolEvent, StepFinishEvent, Conversation } from './types';
+import { ChatMessage, ToolEvent, StepFinishEvent, Conversation, IMAGE_CAPABLE_MODELS } from './types';
 
 export const VIEW_TYPE_OPENCODE_CHAT = 'opencode-chat-view';
 
@@ -115,15 +115,15 @@ export class OpenCodeChatView extends ItemView {
 		const modelArea = header.createDiv({ cls: 'opencode-header-model' });
 		const modelSelector = modelArea.createEl('select', { cls: 'opencode-model-selector' });
 
-		this.plugin.settings.favoriteModels.forEach(model => {
-			const option = modelSelector.createEl('option', { value: model, text: model });
+		IMAGE_CAPABLE_MODELS.forEach(model => {
+			const option = modelSelector.createEl('option', { value: model, text: `${model} 🖼️` });
 			if (model === `${this.plugin.settings.provider}/${this.plugin.settings.model}`) {
 				option.selected = true;
 			}
 		});
 
 		const currentModel = `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
-		if (!this.plugin.settings.favoriteModels.includes(currentModel)) {
+		if (!IMAGE_CAPABLE_MODELS.includes(currentModel)) {
 			modelSelector.createEl('option', {
 				value: currentModel,
 				text: currentModel,
