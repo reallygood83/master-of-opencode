@@ -295,7 +295,7 @@ export class ProcessManager extends EventEmitter {
 		const args = [
 			'run',
 			'--format', 'json',
-			message
+			'--prompt', message
 		];
 
 		if (this.settings.provider !== 'default') {

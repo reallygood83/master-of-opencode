@@ -681,6 +681,7 @@ var ProcessManager = class extends import_events2.EventEmitter {
       "run",
       "--format",
       "json",
+      "--prompt",
       message
     ];
     if (this.settings.provider !== "default") {
