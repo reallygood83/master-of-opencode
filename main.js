@@ -7624,8 +7624,6 @@ var TerminalView = class extends import_obsidian2.ItemView {
     this.fitAddon.fit();
     this.registerDomEvent(window, "resize", () => {
       this.fitAddon.fit();
-      if (this.ptyProcess) {
-      }
     });
     this.terminal.onData((data) => {
       if (this.ptyProcess && this.ptyProcess.stdin) {
@@ -7637,7 +7635,7 @@ var TerminalView = class extends import_obsidian2.ItemView {
   async startSession() {
     var _a, _b, _c;
     this.terminal.clear();
-    this.terminal.writeln("Initializing OpenCode...");
+    this.terminal.writeln("Initializing OpenCode Terminal...");
     const opencodePath = await ((_a = this.plugin.processManager) == null ? void 0 : _a.findOpenCodePath()) || "opencode";
     const model = this.plugin.settings.model.includes("/") ? this.plugin.settings.model : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
     try {
@@ -7650,15 +7648,17 @@ var TerminalView = class extends import_obsidian2.ItemView {
       env.TERM = "xterm-256color";
       env.COLORTERM = "truecolor";
       env.LANG = "en_US.UTF-8";
+      const args = ["-m", model];
       if (process.platform === "win32") {
-        this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, ["run", "-m", model], {
+        this.terminal.writeln(`Starting OpenCode (Windows)...`);
+        this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, args, {
           cwd: this.app.vault.adapter.getBasePath(),
           env,
           shell: true
         });
       } else {
-        const pythonScript = `import pty, sys; pty.spawn(["${opencodePath}", "run", "-m", "${model}"])`;
-        this.terminal.writeln(`Requesting PTY via Python...`);
+        this.terminal.writeln(`Starting OpenCode PTY session...`);
+        const pythonScript = `import pty, sys; pty.spawn(["${opencodePath}", ${args.map((a) => `"${a}"`).join(", ")}])`;
         this.ptyProcess = (0, import_child_process2.spawn)("python3", ["-c", pythonScript], {
           cwd: this.app.vault.adapter.getBasePath(),
           env
@@ -7674,13 +7674,13 @@ var TerminalView = class extends import_obsidian2.ItemView {
         this.terminal.writeln(`\r
 [Fatal Error]: ${err.message}`);
         if (process.platform !== "win32") {
-          this.terminal.writeln("Please ensure python3 is installed and in your PATH.");
+          this.terminal.writeln("Please ensure python3 and opencode are in your PATH.");
         }
       });
       this.ptyProcess.on("exit", (code, signal) => {
         this.terminal.writeln(`\r
 \r
---- Session Ended (Code: ${code}, Signal: ${signal}) ---`);
+--- Interaction Ended (Code: ${code}, Signal: ${signal}) ---`);
       });
       this.terminal.focus();
     } catch (e) {

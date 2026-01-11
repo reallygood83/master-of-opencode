@@ -102,10 +102,6 @@ export class TerminalView extends ItemView {
         // Handle resize
         this.registerDomEvent(window, 'resize', () => {
             this.fitAddon.fit();
-            if (this.ptyProcess) {
-                // We can't resize standard spawn process easily without node-pty, 
-                // but xterm handles wrapping reasonably well.
-            }
         });
 
         // Handle data input
@@ -121,7 +117,7 @@ export class TerminalView extends ItemView {
 
     async startSession(): Promise<void> {
         this.terminal.clear();
-        this.terminal.writeln('Initializing OpenCode...');
+        this.terminal.writeln('Initializing OpenCode Terminal...');
 
         const opencodePath = await this.plugin.processManager?.findOpenCodePath() || 'opencode';
         const model = this.plugin.settings.model.includes('/')
@@ -130,7 +126,6 @@ export class TerminalView extends ItemView {
 
         try {
             const env = { ...process.env };
-            // Inject common paths for macOS/Linux
             if (process.platform !== 'win32') {
                 const extraPaths = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin'];
                 env.PATH = extraPaths.join(':') + ':' + (env.PATH || '');
@@ -141,20 +136,20 @@ export class TerminalView extends ItemView {
             env.COLORTERM = 'truecolor';
             env.LANG = 'en_US.UTF-8';
 
+            // Use just the binary with model flag for interactive mode
+            const args = ['-m', model];
+
             if (process.platform === 'win32') {
-                // Windows: Direct spawn is the only lightweight option
-                this.ptyProcess = spawn(opencodePath, ['run', '-m', model], {
+                this.terminal.writeln(`Starting OpenCode (Windows)...`);
+                this.ptyProcess = spawn(opencodePath, args, {
                     cwd: (this.app.vault.adapter as any).getBasePath(),
                     env: env,
                     shell: true
                 });
             } else {
-                // macOS/Linux: Use python3 PTY bridge. 
-                // This provides a REAL TTY which interactive apps like Claude Code REQUIRE.
-                // It avoids the 'socket' error of 'script' command.
-                const pythonScript = `import pty, sys; pty.spawn(["${opencodePath}", "run", "-m", "${model}"])`;
-
-                this.terminal.writeln(`Requesting PTY via Python...`);
+                this.terminal.writeln(`Starting OpenCode PTY session...`);
+                // Use python3 PTY bridge for a real TTY environment
+                const pythonScript = `import pty, sys; pty.spawn(["${opencodePath}", ${args.map(a => `"${a}"`).join(", ")}])`;
 
                 this.ptyProcess = spawn('python3', ['-c', pythonScript], {
                     cwd: (this.app.vault.adapter as any).getBasePath(),
@@ -173,12 +168,12 @@ export class TerminalView extends ItemView {
             this.ptyProcess.on('error', (err) => {
                 this.terminal.writeln(`\r\n[Fatal Error]: ${err.message}`);
                 if (process.platform !== 'win32') {
-                    this.terminal.writeln('Please ensure python3 is installed and in your PATH.');
+                    this.terminal.writeln('Please ensure python3 and opencode are in your PATH.');
                 }
             });
 
             this.ptyProcess.on('exit', (code, signal) => {
-                this.terminal.writeln(`\r\n\r\n--- Session Ended (Code: ${code}, Signal: ${signal}) ---`);
+                this.terminal.writeln(`\r\n\r\n--- Interaction Ended (Code: ${code}, Signal: ${signal}) ---`);
             });
 
             this.terminal.focus();
