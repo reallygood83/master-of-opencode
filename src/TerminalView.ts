@@ -125,37 +125,46 @@ export class TerminalView extends ItemView {
 
         const opencodePath = await this.plugin.processManager?.findOpenCodePath() || 'opencode';
 
-        // Construct args based on settings
-        const args = []; // Start with empty args for script command
-
-        // We need to use 'script' command trick to fake a PTY on Mac/Linux
-        // Usage: script -q /dev/null command args...
-
         const model = this.plugin.settings.model.includes('/')
             ? this.plugin.settings.model
             : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
 
-        // Run opencode with settings
-        const opencodeCmd = `"${opencodePath}" run -m "${model}"`;
-
-        // Use standard spawn but with script wrapper for PTY behavior
-        const shell = process.env.SHELL || '/bin/bash';
-
         try {
-            // Using 'script' utility to emulate a TTY
-            // -q: Quiet
-            // -F: Flush output immediately (Mac specific option, might need check)
-            // /dev/null: Where to save typescript (nowhere)
+            if (process.platform === 'win32') {
+                // Windows: Spawn directly, no PTY emulation possible without native modules
+                // Using 'cmd.exe' as a shell wrapper might help with some environment setups
+                this.ptyProcess = spawn(opencodePath, ['run', '-m', model], {
+                    cwd: (this.app.vault.adapter as any).getBasePath(),
+                    env: {
+                        ...process.env,
+                        TERM: 'xterm-256color', // Attempt to force color, though windows console support varies
+                        NO_COLOR: undefined // Ensure NO_COLOR isn't set
+                    }
+                });
+            } else {
+                // Mac/Linux: Use 'script' for PTY emulation
+                let scriptArgs: string[] = [];
 
-            // Note: MacOS 'script' syntax is: script -q /dev/null command
-            this.ptyProcess = spawn('script', ['-q', '/dev/null', opencodePath, 'run', '-m', model], {
-                cwd: (this.app.vault.adapter as any).getBasePath(),
-                env: {
-                    ...process.env,
-                    TERM: 'xterm-256color', // Force color
-                    COLORTERM: 'truecolor'
+                if (process.platform === 'darwin') {
+                    // macOS: script -q /dev/null command args
+                    scriptArgs = ['-q', '/dev/null', opencodePath, 'run', '-m', model];
+                } else {
+                    // Linux: script -q -c "command args" /dev/null
+                    // The syntax is slightly different. 
+                    // script -q /dev/null -c "command args" might be safer for modern linux util-linux
+                    // But standard is script -q -c "cmd" /dev/null
+                    scriptArgs = ['-q', '-c', `"${opencodePath}" run -m "${model}"`, '/dev/null'];
                 }
-            });
+
+                this.ptyProcess = spawn('script', scriptArgs, {
+                    cwd: (this.app.vault.adapter as any).getBasePath(),
+                    env: {
+                        ...process.env,
+                        TERM: 'xterm-256color',
+                        COLORTERM: 'truecolor'
+                    }
+                });
+            }
 
             this.ptyProcess.stdout?.on('data', (data) => {
                 this.terminal.write(data);

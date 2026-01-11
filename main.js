@@ -7639,20 +7639,35 @@ var TerminalView = class extends import_obsidian2.ItemView {
     this.terminal.clear();
     this.terminal.writeln("Initializing OpenCode...");
     const opencodePath = await ((_a = this.plugin.processManager) == null ? void 0 : _a.findOpenCodePath()) || "opencode";
-    const args = [];
     const model = this.plugin.settings.model.includes("/") ? this.plugin.settings.model : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
-    const opencodeCmd = `"${opencodePath}" run -m "${model}"`;
-    const shell = process.env.SHELL || "/bin/bash";
     try {
-      this.ptyProcess = (0, import_child_process2.spawn)("script", ["-q", "/dev/null", opencodePath, "run", "-m", model], {
-        cwd: this.app.vault.adapter.getBasePath(),
-        env: {
-          ...process.env,
-          TERM: "xterm-256color",
-          // Force color
-          COLORTERM: "truecolor"
+      if (process.platform === "win32") {
+        this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, ["run", "-m", model], {
+          cwd: this.app.vault.adapter.getBasePath(),
+          env: {
+            ...process.env,
+            TERM: "xterm-256color",
+            // Attempt to force color, though windows console support varies
+            NO_COLOR: void 0
+            // Ensure NO_COLOR isn't set
+          }
+        });
+      } else {
+        let scriptArgs = [];
+        if (process.platform === "darwin") {
+          scriptArgs = ["-q", "/dev/null", opencodePath, "run", "-m", model];
+        } else {
+          scriptArgs = ["-q", "-c", `"${opencodePath}" run -m "${model}"`, "/dev/null"];
         }
-      });
+        this.ptyProcess = (0, import_child_process2.spawn)("script", scriptArgs, {
+          cwd: this.app.vault.adapter.getBasePath(),
+          env: {
+            ...process.env,
+            TERM: "xterm-256color",
+            COLORTERM: "truecolor"
+          }
+        });
+      }
       (_b = this.ptyProcess.stdout) == null ? void 0 : _b.on("data", (data) => {
         this.terminal.write(data);
       });
