@@ -1,6 +1,6 @@
 {
 	"name": "master-of-opencode",
-	"version": "0.1.9",
+	"version": "0.1.10",
 	"description": "Integrate OpenCode CLI agent into Obsidian",
 	"main": "main.js",
 	"scripts": {

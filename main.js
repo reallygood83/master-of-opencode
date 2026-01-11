@@ -321,6 +321,8 @@ var OpenCodeSettingTab = class extends import_obsidian.PluginSettingTab {
 
 // src/ProcessManager.ts
 var import_child_process = require("child_process");
+var import_util = require("util");
+var fs = __toESM(require("fs"));
 var import_events2 = require("events");
 
 // src/StreamParser.ts
@@ -442,6 +444,9 @@ var StreamParser = class extends import_events.EventEmitter {
 };
 
 // src/ProcessManager.ts
+var execAsync = (0, import_util.promisify)(import_child_process.exec);
+var access = fs.promises.access;
+var { constants } = fs;
 var ProcessManager = class extends import_events2.EventEmitter {
   constructor(settings, vaultPath) {
     super();
@@ -519,9 +524,6 @@ var ProcessManager = class extends import_events2.EventEmitter {
       `${process.env.HOME}/bin/opencode`,
       `${process.env.HOME}/Developer/opencode-patch/opencode/packages/opencode/dist/opencode-darwin-arm64/bin/opencode`
     ];
-    const fs = await import("fs");
-    const { constants } = fs;
-    const access = fs.promises.access;
     for (const path of possiblePaths) {
       try {
         await access(path, constants.X_OK);
@@ -531,9 +533,6 @@ var ProcessManager = class extends import_events2.EventEmitter {
       }
     }
     try {
-      const { exec } = await import("child_process");
-      const { promisify } = await import("util");
-      const execAsync = promisify(exec);
       const { stdout } = await execAsync("which opencode");
       if (stdout && stdout.trim()) {
         return stdout.trim();
@@ -543,9 +542,6 @@ var ProcessManager = class extends import_events2.EventEmitter {
     return "opencode";
   }
   async installOpenCode() {
-    const { exec } = await import("child_process");
-    const { promisify } = await import("util");
-    const execAsync = promisify(exec);
     try {
       await execAsync("npm install -g @opencode/cli", { timeout: 12e4 });
       const { stdout } = await execAsync("which opencode");
@@ -589,9 +585,6 @@ var ProcessManager = class extends import_events2.EventEmitter {
   }
   async checkOpenCodeInstalled() {
     try {
-      const { exec } = await import("child_process");
-      const { promisify } = await import("util");
-      const execAsync = promisify(exec);
       const path = await this.findOpenCodePath();
       const { stdout } = await execAsync(`"${path}" --version`);
       return {
@@ -605,9 +598,6 @@ var ProcessManager = class extends import_events2.EventEmitter {
   }
   async getAvailableModels() {
     try {
-      const { exec } = await import("child_process");
-      const { promisify } = await import("util");
-      const execAsync = promisify(exec);
       const path = await this.findOpenCodePath();
       const { stdout } = await execAsync(`"${path}" models`, { timeout: 3e4 });
       const models = stdout.trim().split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
@@ -618,9 +608,6 @@ var ProcessManager = class extends import_events2.EventEmitter {
   }
   async getAuthProviders() {
     try {
-      const { exec } = await import("child_process");
-      const { promisify } = await import("util");
-      const execAsync = promisify(exec);
       const path = await this.findOpenCodePath();
       const { stdout } = await execAsync(`"${path}" auth list`, { timeout: 1e4 });
       const lines = stdout.trim().split("\n");
@@ -641,9 +628,8 @@ var ProcessManager = class extends import_events2.EventEmitter {
   }
   async loginProvider(provider) {
     try {
-      const { spawn: spawn2 } = await import("child_process");
       const path = await this.findOpenCodePath();
-      const process2 = spawn2(path, ["auth", "login", provider], {
+      const process2 = (0, import_child_process.spawn)(path, ["auth", "login", provider], {
         detached: true,
         stdio: "ignore"
       });
@@ -661,9 +647,6 @@ var ProcessManager = class extends import_events2.EventEmitter {
   }
   async logoutProvider(provider) {
     try {
-      const { exec } = await import("child_process");
-      const { promisify } = await import("util");
-      const execAsync = promisify(exec);
       const path = await this.findOpenCodePath();
       await execAsync(`"${path}" auth logout ${provider}`);
       return {

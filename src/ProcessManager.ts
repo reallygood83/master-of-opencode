@@ -1,7 +1,13 @@
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, exec, ChildProcess } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs';
 import { EventEmitter } from 'events';
 import { OpenCodeSettings, ProcessState, ToolEvent, StepFinishEvent } from './types';
 import { StreamParser, ParsedEvent, ParsedTextEvent, ParsedToolEvent, ParsedStepEvent, ParsedSessionEvent, ParsedErrorEvent } from './StreamParser';
+
+const execAsync = promisify(exec);
+const access = fs.promises.access;
+const { constants } = fs;
 
 export class ProcessManager extends EventEmitter {
 	private process: ChildProcess | null = null;
@@ -90,10 +96,6 @@ export class ProcessManager extends EventEmitter {
 			`${process.env.HOME}/Developer/opencode-patch/opencode/packages/opencode/dist/opencode-darwin-arm64/bin/opencode`
 		];
 
-		const fs = await import('fs');
-		const { constants } = fs;
-		const access = fs.promises.access;
-
 		// Check explicit paths first using fs (more reliable than exec ls)
 		for (const path of possiblePaths) {
 			try {
@@ -106,9 +108,6 @@ export class ProcessManager extends EventEmitter {
 
 		// Fallback to 'which' to check PATH
 		try {
-			const { exec } = await import('child_process');
-			const { promisify } = await import('util');
-			const execAsync = promisify(exec);
 			const { stdout } = await execAsync('which opencode');
 			if (stdout && stdout.trim()) {
 				return stdout.trim();
@@ -121,10 +120,6 @@ export class ProcessManager extends EventEmitter {
 	}
 
 	async installOpenCode(): Promise<{ success: boolean; message: string; path?: string }> {
-		const { exec } = await import('child_process');
-		const { promisify } = await import('util');
-		const execAsync = promisify(exec);
-
 		try {
 			await execAsync('npm install -g @opencode/cli', { timeout: 120000 });
 			const { stdout } = await execAsync('which opencode');
@@ -171,10 +166,6 @@ export class ProcessManager extends EventEmitter {
 
 	async checkOpenCodeInstalled(): Promise<{ installed: boolean; version?: string; path?: string; error?: string }> {
 		try {
-			const { exec } = await import('child_process');
-			const { promisify } = await import('util');
-			const execAsync = promisify(exec);
-
 			const path = await this.findOpenCodePath();
 			const { stdout } = await execAsync(`"${path}" --version`);
 
@@ -190,10 +181,6 @@ export class ProcessManager extends EventEmitter {
 
 	async getAvailableModels(): Promise<string[]> {
 		try {
-			const { exec } = await import('child_process');
-			const { promisify } = await import('util');
-			const execAsync = promisify(exec);
-
 			const path = await this.findOpenCodePath();
 			const { stdout } = await execAsync(`"${path}" models`, { timeout: 30000 });
 
@@ -211,10 +198,6 @@ export class ProcessManager extends EventEmitter {
 
 	async getAuthProviders(): Promise<{ provider: string; type: string }[]> {
 		try {
-			const { exec } = await import('child_process');
-			const { promisify } = await import('util');
-			const execAsync = promisify(exec);
-
 			const path = await this.findOpenCodePath();
 			const { stdout } = await execAsync(`"${path}" auth list`, { timeout: 10000 });
 
@@ -239,8 +222,6 @@ export class ProcessManager extends EventEmitter {
 
 	async loginProvider(provider: string): Promise<{ success: boolean; message: string }> {
 		try {
-			const { spawn } = await import('child_process');
-
 			const path = await this.findOpenCodePath();
 			const process = spawn(path, ['auth', 'login', provider], {
 				detached: true,
@@ -263,10 +244,6 @@ export class ProcessManager extends EventEmitter {
 
 	async logoutProvider(provider: string): Promise<{ success: boolean; message: string }> {
 		try {
-			const { exec } = await import('child_process');
-			const { promisify } = await import('util');
-			const execAsync = promisify(exec);
-
 			const path = await this.findOpenCodePath();
 			await execAsync(`"${path}" auth logout ${provider}`);
 
