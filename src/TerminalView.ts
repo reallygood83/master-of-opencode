@@ -150,41 +150,43 @@ export class TerminalView extends ItemView {
                     shell: true
                 });
             } else {
-                // Advaced Python PTY Bridge with Resize Support via FD 3
-                const pythonScript = `
+                // Fix: Properly formatted Python bridge using exec() to avoid semicolon SyntaxErrors
+                const pythonCode = `
 import os,sys,pty,select,array,fcntl,termios
-def s(fd,r,c):
- try:fcntl.ioctl(fd,termios.TIOCSWINSZ,array.array('h',[int(r),int(c),0,0]))
- except:pass
-m,v=pty.openpty();s(m,os.environ.get('ROWS',24),os.environ.get('COLS',80));p=os.fork()
-if p==0:
- os.setsid();os.dup2(v,0);os.dup2(v,1);os.dup2(v,2);os.close(m)
+m,p_v=pty.openpty()
+r,c=os.environ.get('ROWS','24'),os.environ.get('COLS','80')
+fcntl.ioctl(m,termios.TIOCSWINSZ,array.array('h',[int(r),int(c),0,0]))
+if os.fork()==0:
+ os.close(m);os.setsid();os.dup2(p_v,0);os.dup2(p_v,1);os.dup2(p_v,2)
  try:os.execvp(sys.argv[1],sys.argv[1:])
  except:os._exit(1)
-else:
- os.close(v)
- try:
-  while 1:
-   ready,_,_=select.select([m,0,3],[],[])
-   if m in ready:
-    d=os.read(m,4096)
-    if not d:break
-    os.write(1,d)
-   if 0 in ready:
-    d=os.read(0,4096)
-    if not d:break
-    os.write(m,d)
-   if 3 in ready:
-    cmd=os.read(3,1024).decode().strip()
-    if cmd.startswith('R:'):
-     _,r,c=cmd.split(':');s(m,r,c)
- except:pass
-`.trim().replace(/\n/g, ';');
+os.close(p_v)
+while True:
+ rdk,_,_=select.select([m,0,3],[],[])
+ if m in rdk:
+  try:
+   d=os.read(m,4096)
+   if not d:break
+   os.write(sys.stdout.buffer.fileno(),d)
+  except:break
+ if 0 in rdk:
+  try:
+   d=os.read(0,4096)
+   if not d:break
+   os.write(m,d)
+  except:break
+ if 3 in rdk:
+  try:
+   l=os.read(3,1024).decode().strip()
+   if l.startswith('R:'):
+    _,rs,cs=l.split(':');fcntl.ioctl(m,termios.TIOCSWINSZ,array.array('h',[int(rs),int(cs),0,0]))
+  except:pass
+`.trim();
 
-                this.ptyProcess = spawn('python3', ['-c', pythonScript, opencodePath, ...args], {
+                this.ptyProcess = spawn('python3', ['-c', pythonCode, opencodePath, ...args], {
                     cwd: (this.app.vault.adapter as any).getBasePath(),
                     env: env,
-                    stdio: ['pipe', 'pipe', 'pipe', 'pipe'] // fd 3 is for resize commands
+                    stdio: ['pipe', 'pipe', 'pipe', 'pipe']
                 });
             }
 
