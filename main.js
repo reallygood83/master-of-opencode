@@ -7641,33 +7641,22 @@ var TerminalView = class extends import_obsidian2.ItemView {
     const opencodePath = await ((_a = this.plugin.processManager) == null ? void 0 : _a.findOpenCodePath()) || "opencode";
     const model = this.plugin.settings.model.includes("/") ? this.plugin.settings.model : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
     try {
-      if (process.platform === "win32") {
-        this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, ["run", "-m", model], {
-          cwd: this.app.vault.adapter.getBasePath(),
-          env: {
-            ...process.env,
-            TERM: "xterm-256color",
-            // Attempt to force color, though windows console support varies
-            NO_COLOR: void 0
-            // Ensure NO_COLOR isn't set
-          }
-        });
-      } else {
-        let scriptArgs = [];
-        if (process.platform === "darwin") {
-          scriptArgs = ["-q", "/dev/null", opencodePath, "run", "-m", model];
-        } else {
-          scriptArgs = ["-q", "-c", `"${opencodePath}" run -m "${model}"`, "/dev/null"];
+      this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, ["run", "-m", model], {
+        cwd: this.app.vault.adapter.getBasePath(),
+        env: {
+          ...process.env,
+          // Force color/TTY-like behavior
+          FORCE_COLOR: "3",
+          // 3 = TrueColor
+          CLICOLOR: "1",
+          CLICOLOR_FORCE: "1",
+          TERM: "xterm-256color",
+          COLORTERM: "truecolor",
+          NO_UPDATE_NOTIFIER: "1",
+          CI: "1"
+          // Sometimes helps tools assume non-interactive but colored
         }
-        this.ptyProcess = (0, import_child_process2.spawn)("script", scriptArgs, {
-          cwd: this.app.vault.adapter.getBasePath(),
-          env: {
-            ...process.env,
-            TERM: "xterm-256color",
-            COLORTERM: "truecolor"
-          }
-        });
-      }
+      });
       (_b = this.ptyProcess.stdout) == null ? void 0 : _b.on("data", (data) => {
         this.terminal.write(data);
       });
@@ -7675,8 +7664,13 @@ var TerminalView = class extends import_obsidian2.ItemView {
         this.terminal.write(data);
       });
       this.ptyProcess.on("exit", (code) => {
-        this.terminal.writeln(`\r
+        if (code !== 0) {
+          this.terminal.writeln(`\r
 Process exited with code ${code}`);
+        } else {
+          this.terminal.writeln(`\r
+Session ended.`);
+        }
       });
       this.terminal.focus();
     } catch (e) {

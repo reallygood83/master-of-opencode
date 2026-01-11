@@ -130,41 +130,23 @@ export class TerminalView extends ItemView {
             : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
 
         try {
-            if (process.platform === 'win32') {
-                // Windows: Spawn directly, no PTY emulation possible without native modules
-                // Using 'cmd.exe' as a shell wrapper might help with some environment setups
-                this.ptyProcess = spawn(opencodePath, ['run', '-m', model], {
-                    cwd: (this.app.vault.adapter as any).getBasePath(),
-                    env: {
-                        ...process.env,
-                        TERM: 'xterm-256color', // Attempt to force color, though windows console support varies
-                        NO_COLOR: undefined // Ensure NO_COLOR isn't set
-                    }
-                });
-            } else {
-                // Mac/Linux: Use 'script' for PTY emulation
-                let scriptArgs: string[] = [];
-
-                if (process.platform === 'darwin') {
-                    // macOS: script -q /dev/null command args
-                    scriptArgs = ['-q', '/dev/null', opencodePath, 'run', '-m', model];
-                } else {
-                    // Linux: script -q -c "command args" /dev/null
-                    // The syntax is slightly different. 
-                    // script -q /dev/null -c "command args" might be safer for modern linux util-linux
-                    // But standard is script -q -c "cmd" /dev/null
-                    scriptArgs = ['-q', '-c', `"${opencodePath}" run -m "${model}"`, '/dev/null'];
+            // macOS/Linux "script" command fails in Electron (socket error).
+            // Fallback to direct spawn for ALL platforms, but aggressively force color/TTY env vars.
+            // This sacrifices native PTY handling (arrow keys might be limited) for stability.
+            this.ptyProcess = spawn(opencodePath, ['run', '-m', model], {
+                cwd: (this.app.vault.adapter as any).getBasePath(),
+                env: {
+                    ...process.env,
+                    // Force color/TTY-like behavior
+                    FORCE_COLOR: '3', // 3 = TrueColor
+                    CLICOLOR: '1',
+                    CLICOLOR_FORCE: '1',
+                    TERM: 'xterm-256color',
+                    COLORTERM: 'truecolor',
+                    NO_UPDATE_NOTIFIER: '1',
+                    CI: '1' // Sometimes helps tools assume non-interactive but colored
                 }
-
-                this.ptyProcess = spawn('script', scriptArgs, {
-                    cwd: (this.app.vault.adapter as any).getBasePath(),
-                    env: {
-                        ...process.env,
-                        TERM: 'xterm-256color',
-                        COLORTERM: 'truecolor'
-                    }
-                });
-            }
+            });
 
             this.ptyProcess.stdout?.on('data', (data) => {
                 this.terminal.write(data);
@@ -175,7 +157,11 @@ export class TerminalView extends ItemView {
             });
 
             this.ptyProcess.on('exit', (code) => {
-                this.terminal.writeln(`\r\nProcess exited with code ${code}`);
+                if (code !== 0) {
+                    this.terminal.writeln(`\r\nProcess exited with code ${code}`);
+                } else {
+                    this.terminal.writeln(`\r\nSession ended.`);
+                }
             });
 
             this.terminal.focus();
