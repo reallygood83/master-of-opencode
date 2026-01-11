@@ -17,18 +17,18 @@ export interface OpenCodeSettings {
 
 export const DEFAULT_SETTINGS: OpenCodeSettings = {
 	provider: 'anthropic',
-	model: 'claude-sonnet-4-20250514',
+	model: 'claude-3-5-sonnet-latest',
 	customApiBaseUrl: '',
 	contextWindowLimit: 128000,
 	executionMode: 'spawn',
 	serverPort: 3000,
-	opencodePath: '',
+	opencodePath: '/Users/moon/Developer/opencode-patch/opencode/packages/opencode/dist/opencode-darwin-arm64/bin/opencode',
 	theme: 'adaptive',
 	notifications: true,
 	favoriteModels: [
-		'anthropic/claude-sonnet-4-20250514',
+		'anthropic/claude-3-5-sonnet-latest',
 		'openai/gpt-4o',
-		'google/gemini-1.5-pro'
+		'google/gemini-2.0-flash-exp'
 	]
 };
 
@@ -84,10 +84,10 @@ export const PROVIDERS: Record<Provider, { name: string; models: string[] }> = {
 	anthropic: {
 		name: 'Anthropic',
 		models: [
-			'claude-sonnet-4-20250514',
-			'claude-opus-4-20250514',
+			'claude-3-5-sonnet-latest',
 			'claude-3-5-sonnet-20241022',
-			'claude-3-5-haiku-20241022'
+			'claude-3-5-haiku-latest',
+			'claude-3-opus-latest'
 		]
 	},
 	openai: {
@@ -95,7 +95,6 @@ export const PROVIDERS: Record<Provider, { name: string; models: string[] }> = {
 		models: [
 			'gpt-4o',
 			'gpt-4o-mini',
-			'gpt-4-turbo',
 			'o1-preview',
 			'o1-mini'
 		]
@@ -103,9 +102,9 @@ export const PROVIDERS: Record<Provider, { name: string; models: string[] }> = {
 	google: {
 		name: 'Google',
 		models: [
+			'gemini-2.0-flash-exp',
 			'gemini-1.5-pro',
-			'gemini-1.5-flash',
-			'gemini-2.0-flash-exp'
+			'gemini-1.5-flash'
 		]
 	},
 	ollama: {

@@ -77,30 +77,48 @@ export class ProcessManager extends EventEmitter {
 	}
 
 	async findOpenCodePath(): Promise<string> {
-		if (this.settings.opencodePath) {
+		if (this.settings.opencodePath && this.settings.opencodePath.trim() !== '') {
 			return this.settings.opencodePath;
 		}
 
+		// List of possible paths to check
 		const possiblePaths = [
 			'/opt/homebrew/bin/opencode',
 			'/usr/local/bin/opencode',
 			'/usr/bin/opencode',
-			process.env.HOME + '/.local/bin/opencode',
-			process.env.HOME + '/Developer/opencode-patch/opencode/packages/opencode/dist/opencode-darwin-arm64/bin/opencode'
+			`${process.env.HOME}/.local/bin/opencode`,
+			`${process.env.HOME}/bin/opencode`,
+			// Also check the specific developer path if user is developing locally
+			`${process.env.HOME}/Developer/opencode-patch/opencode/packages/opencode/dist/opencode-darwin-arm64/bin/opencode`
 		];
 
+		const { exec } = await import('child_process');
+		const { promisify } = await import('util');
+		const execAsync = promisify(exec);
+
+		// First, check if 'opencode' is in the PATH available to the shell
+		try {
+			// If 'which' succeeds, it means it's in the path
+			const { stdout } = await execAsync('which opencode');
+			if (stdout && stdout.trim()) {
+				return stdout.trim();
+			}
+		} catch (e) {
+			// Ignore error if not found in PATH via 'which'
+		}
+
+		// Then check specific standard locations
 		for (const path of possiblePaths) {
 			try {
-				const { exec } = await import('child_process');
-				const { promisify } = await import('util');
-				const execAsync = promisify(exec);
-				await execAsync(`"${path}" --version`);
+				await execAsync(`ls "${path}"`);
 				return path;
 			} catch {
 				continue;
 			}
 		}
 
+		// Fallback to just "opencode" and hope it's in the PATH inherited by Obsidian
+		// If fails, user should set the path in settings
 		return 'opencode';
 	}
 
@@ -156,7 +174,7 @@ export class ProcessManager extends EventEmitter {
 
 		return new Promise((resolve, reject) => {
 			this.parser.reset();
-			
+
 			this.process = spawn(opencodePath, args, {
 				cwd: this.vaultPath,
 				env,
