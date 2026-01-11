@@ -190,6 +190,100 @@ export class ProcessManager extends EventEmitter {
 		}
 	}
 
+	async getAvailableModels(): Promise<string[]> {
+		try {
+			const { exec } = await import('child_process');
+			const { promisify } = await import('util');
+			const execAsync = promisify(exec);
+
+			const path = await this.findOpenCodePath();
+			const { stdout } = await execAsync(`"${path}" models`, { timeout: 30000 });
+
+			const models = stdout
+				.trim()
+				.split('\n')
+				.map(line => line.trim())
+				.filter(line => line.length > 0);
+
+			return models;
+		} catch {
+			return [];
+		}
+	}
+
+	async getAuthProviders(): Promise<{ provider: string; type: string }[]> {
+		try {
+			const { exec } = await import('child_process');
+			const { promisify } = await import('util');
+			const execAsync = promisify(exec);
+
+			const path = await this.findOpenCodePath();
+			const { stdout } = await execAsync(`"${path}" auth list`, { timeout: 10000 });
+
+			const lines = stdout.trim().split('\n');
+			const providers: { provider: string; type: string }[] = [];
+
+			for (const line of lines) {
+				const match = line.match(/●?\s*(.+?)\s*\[(.+?)\]/);
+				if (match) {
+					providers.push({
+						provider: match[1].trim(),
+						type: match[2].trim()
+					});
+				}
+			}
+
+			return providers;
+		} catch {
+			return [];
+		}
+	}
+
+	async loginProvider(provider: string): Promise<{ success: boolean; message: string }> {
+		try {
+			const { spawn } = await import('child_process');
+
+			const path = await this.findOpenCodePath();
+			const process = spawn(path, ['auth', 'login', provider], {
+				detached: true,
+				stdio: 'ignore'
+			});
+
+			process.unref();
+
+			return {
+				success: true,
+				message: `Opening ${provider} login page... Check your browser.`
+			};
+		} catch (error) {
+			return {
+				success: false,
+				message: `Failed to open ${provider} login: ${error}`
+			};
+		}
+	}
+
+	async logoutProvider(provider: string): Promise<{ success: boolean; message: string }> {
+		try {
+			const { exec } = await import('child_process');
+			const { promisify } = await import('util');
+			const execAsync = promisify(exec);
+
+			const path = await this.findOpenCodePath();
+			await execAsync(`"${path}" auth logout ${provider}`);
+
+			return {
+				success: true,
+				message: `Logged out from ${provider}`
+			};
+		} catch (error) {
+			return {
+				success: false,
+				message: `Failed to logout from ${provider}: ${error}`
+			};
+		}
+	}
+
 	async start(): Promise<void> {
 		this.state.isRunning = true;
 		this.emit('started', this.state);

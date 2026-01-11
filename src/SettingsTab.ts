@@ -1,35 +1,70 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { OpenCodeSettings, Provider, ExecutionMode, Theme, PROVIDERS } from './types';
 import type OpenCodePlugin from './main';
 
 export class OpenCodeSettingTab extends PluginSettingTab {
 	plugin: OpenCodePlugin;
+	private newProviderValue: string = '';
 
 	constructor(app: App, plugin: OpenCodePlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
+	async loadAuthProviders(authListEl: HTMLElement): Promise<void> {
+		try {
+			if (this.plugin.processManager) {
+				const authProviders = await this.plugin.processManager.getAuthProviders();
+
+				if (authProviders.length > 0) {
+					authProviders.forEach(auth => {
+						const authItem = authListEl.createDiv({ cls: 'opencode-auth-item' });
+						authItem.createSpan({ text: `✅ ${auth.provider}`, cls: 'auth-provider-name' });
+						authItem.createSpan({ text: `(${auth.type})`, cls: 'auth-provider-type' });
+
+						authItem.createEl('button', {
+							cls: 'auth-logout-btn',
+							text: 'Logout'
+						}).addEventListener('click', async () => {
+							if (this.plugin.processManager) {
+								const result = await this.plugin.processManager.logoutProvider(auth.provider);
+								new Notice(result.message);
+								if (result.success) {
+									this.display();
+								}
+							}
+						});
+					});
+				} else {
+					authListEl.createEl('p', {
+						text: 'No authenticated providers found. Add one below.',
+						cls: 'setting-item-description'
+					});
+				}
+			}
+		} catch (error) {
+			authListEl.createEl('p', {
+				text: `Failed to load auth status: ${error}`,
+				cls: 'opencode-error'
+			});
+		}
+	}
+
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		// Header
 		containerEl.createEl('h1', { text: 'Master of OpenCode' });
 		containerEl.createEl('p', {
 			text: 'Configure your AI-powered development assistant',
 			cls: 'setting-item-description'
 		});
 
-		// ==================
-		// OpenCode Installation & Connection
-		// ==================
 		containerEl.createEl('h2', { text: '🔌 OpenCode Connection' });
 
 		const statusEl = containerEl.createDiv({ cls: 'opencode-status' });
 		const state = this.plugin.processManager?.getState();
 
-		// OpenCode Path
 		new Setting(containerEl)
 			.setName('OpenCode Path')
 			.setDesc('Path to opencode binary (auto-detected if empty)')
@@ -115,7 +150,6 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					}
 				}));
 
-		// Status Display
 		if (state?.sessionID) {
 			statusEl.createEl('span', {
 				text: '🟢 Session Active',
@@ -142,7 +176,6 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					this.display();
 				}));
 
-		// Execution Mode
 		new Setting(containerEl)
 			.setName('Execution Mode')
 			.setDesc('How to connect to OpenCode')
@@ -158,7 +191,6 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					});
 			});
 
-		// Server Port (only show in server mode)
 		if (this.plugin.settings.executionMode === 'server') {
 			new Setting(containerEl)
 				.setName('Server Port')
@@ -172,12 +204,49 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					}));
 		}
 
-		// ==================
-		// AI Model Settings
-		// ==================
 		containerEl.createEl('h2', { text: '🤖 AI Model Settings' });
 
-		// Provider Selection
+		new Setting(containerEl)
+			.setName('Authentication Status')
+			.setDesc('Manage your OpenCode CLI provider credentials')
+			.addButton(button => button
+				.setButtonText('🔄 Refresh Auth Status')
+				.onClick(async () => {
+					button.setDisabled(true);
+					button.setButtonText('Refreshing...');
+					this.display();
+					button.setDisabled(false);
+					button.setButtonText('🔄 Refresh Auth Status');
+				}));
+
+		const authListEl = containerEl.createDiv({ cls: 'opencode-auth-list' });
+
+		this.loadAuthProviders(authListEl);
+
+		new Setting(containerEl)
+			.setName('Add Provider Login')
+			.setDesc('Log in to a new AI provider (will open browser)')
+			.addText(text => text
+				.setPlaceholder('anthropic, google, xai, etc.')
+				.setValue('')
+				.onChange((value) => {
+					this.newProviderValue = value;
+				}))
+			.addButton(button => button
+				.setButtonText('Login')
+				.setCta()
+				.onClick(async () => {
+					if (this.newProviderValue && this.newProviderValue.trim()) {
+						if (this.plugin.processManager) {
+							const result = await this.plugin.processManager.loginProvider(this.newProviderValue.trim());
+							new Notice(result.message);
+							if (result.success) {
+								this.display();
+							}
+						}
+					}
+				}));
+
 		new Setting(containerEl)
 			.setName('AI Provider')
 			.setDesc('Select "Default" to use your CLI configuration, or override with a specific provider.')
@@ -199,49 +268,39 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.provider)
 					.onChange(async (value: string) => {
 						this.plugin.settings.provider = value as Provider;
-						// Reset model when provider changes
-						const providerConfig = PROVIDERS[value as Provider];
-						if (providerConfig && providerConfig.models.length > 0) {
-							this.plugin.settings.model = providerConfig.models[0];
-						}
 						await this.plugin.saveSettings();
-						this.display(); // Refresh to show new models
+						this.display();
 					});
 			});
 
-		// Model Selection
-		if (this.plugin.settings.provider !== 'default') {
-			new Setting(containerEl)
-				.setName('Model')
-				.setDesc('Select the specific model to use')
-				.addDropdown(dropdown => {
-					const providerConfig = PROVIDERS[this.plugin.settings.provider];
+		new Setting(containerEl)
+			.setName('Model')
+			.setDesc('Select model from OpenCode CLI (refresh after login)')
+			.addDropdown(dropdown => {
+				if (this.plugin.settings.provider === 'default') {
+					dropdown.addOption('default', 'Use CLI Default');
+					dropdown.setValue('default');
+				} else {
+					const provider = this.plugin.settings.provider;
+					dropdown.addOption(`${provider}/model-name`, `Select ${provider} model from CLI`);
+				}
 
-					if (providerConfig && providerConfig.models.length > 0) {
-						providerConfig.models.forEach(model => {
-							dropdown.addOption(model, model);
-						});
-					} else {
-						dropdown.addOption('custom', 'Enter custom model below');
-					}
-
-					dropdown
-						.setValue(this.plugin.settings.model)
-						.onChange(async (value) => {
-							this.plugin.settings.model = value;
-							await this.plugin.saveSettings();
-						});
-				})
-				.addText(text => text
-					.setPlaceholder('Or enter custom model ID')
-					.setValue(this.plugin.settings.model)
-					.onChange(async (value) => {
-						this.plugin.settings.model = value;
+				dropdown
+					.onChange(async (value: string) => {
+						if (this.plugin.settings.provider !== 'default') {
+							this.plugin.settings.model = value.split('/')[1] || value;
+						}
 						await this.plugin.saveSettings();
-					}));
-		}
+					});
+			})
+			.addText(text => text
+				.setPlaceholder('Or enter custom model ID (provider/model)')
+				.setValue(this.plugin.settings.model)
+				.onChange(async (value) => {
+					this.plugin.settings.model = value;
+					await this.plugin.saveSettings();
+				}));
 
-		// Custom API Base URL
 		new Setting(containerEl)
 			.setName('Custom API Base URL')
 			.setDesc('For local LLMs or custom proxies (leave empty for default)')
@@ -253,7 +312,6 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// Context Window
 		new Setting(containerEl)
 			.setName('Context Window Limit')
 			.setDesc('Maximum tokens for context (depends on model)')
@@ -266,12 +324,8 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// ==================
-		// UI & Appearance
-		// ==================
 		containerEl.createEl('h2', { text: '🎨 UI & Appearance' });
 
-		// Theme
 		new Setting(containerEl)
 			.setName('Theme')
 			.setDesc('Chat interface theme')
@@ -287,7 +341,6 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					});
 			});
 
-		// Notifications
 		new Setting(containerEl)
 			.setName('Notifications')
 			.setDesc('Show notifications for completed tasks')
@@ -298,9 +351,6 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// ==================
-		// Favorite Models
-		// ==================
 		containerEl.createEl('h2', { text: '⭐ Favorite Models' });
 		containerEl.createEl('p', {
 			text: 'Quick access models shown in the toolbar (provider/model format)',
@@ -326,7 +376,6 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					}));
 		});
 
-		// Add Favorite Button
 		new Setting(containerEl)
 			.addButton(button => button
 				.setButtonText('+ Add Favorite')
