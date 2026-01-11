@@ -7639,42 +7639,44 @@ var TerminalView = class extends import_obsidian2.ItemView {
     this.terminal.clear();
     this.terminal.writeln("Initializing OpenCode...");
     const opencodePath = await ((_a = this.plugin.processManager) == null ? void 0 : _a.findOpenCodePath()) || "opencode";
+    this.terminal.writeln(`Executable: ${opencodePath}`);
     const model = this.plugin.settings.model.includes("/") ? this.plugin.settings.model : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
     try {
-      this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, ["run", "-m", model], {
-        cwd: this.app.vault.adapter.getBasePath(),
-        env: {
-          ...process.env,
-          // Force color/TTY-like behavior
-          FORCE_COLOR: "3",
-          // 3 = TrueColor
-          CLICOLOR: "1",
-          CLICOLOR_FORCE: "1",
-          TERM: "xterm-256color",
-          COLORTERM: "truecolor",
-          NO_UPDATE_NOTIFIER: "1",
-          CI: "1"
-          // Sometimes helps tools assume non-interactive but colored
-        }
-      });
+      if (process.platform === "win32") {
+        this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, ["run", "-m", model], {
+          cwd: this.app.vault.adapter.getBasePath(),
+          env: { ...process.env, TERM: "xterm-256color" }
+        });
+      } else {
+        const shell = "/bin/zsh";
+        const args = ["-l", "-c", `"${opencodePath}" run -m "${model}"`];
+        this.terminal.writeln(`Spawning: ${shell} ${args.join(" ")}`);
+        this.ptyProcess = (0, import_child_process2.spawn)(shell, args, {
+          cwd: this.app.vault.adapter.getBasePath(),
+          env: {
+            ...process.env,
+            TERM: "xterm-256color",
+            FORCE_COLOR: "3"
+          }
+        });
+      }
       (_b = this.ptyProcess.stdout) == null ? void 0 : _b.on("data", (data) => {
         this.terminal.write(data);
       });
       (_c = this.ptyProcess.stderr) == null ? void 0 : _c.on("data", (data) => {
         this.terminal.write(data);
       });
-      this.ptyProcess.on("exit", (code) => {
-        if (code !== 0) {
-          this.terminal.writeln(`\r
-Process exited with code ${code}`);
-        } else {
-          this.terminal.writeln(`\r
-Session ended.`);
-        }
+      this.ptyProcess.on("error", (err) => {
+        this.terminal.writeln(`\r
+Spawn Error: ${err.message}`);
+      });
+      this.ptyProcess.on("exit", (code, signal) => {
+        this.terminal.writeln(`\r
+Process exited. Code: ${code}, Signal: ${signal}`);
       });
       this.terminal.focus();
     } catch (e) {
-      this.terminal.writeln(`Error starting process: ${e}`);
+      this.terminal.writeln(`Detailed Error: ${e}`);
     }
   }
   async restartSession() {

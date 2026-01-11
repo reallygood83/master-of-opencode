@@ -124,29 +124,36 @@ export class TerminalView extends ItemView {
         this.terminal.writeln('Initializing OpenCode...');
 
         const opencodePath = await this.plugin.processManager?.findOpenCodePath() || 'opencode';
+        this.terminal.writeln(`Executable: ${opencodePath}`);
 
         const model = this.plugin.settings.model.includes('/')
             ? this.plugin.settings.model
             : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
 
         try {
-            // macOS/Linux "script" command fails in Electron (socket error).
-            // Fallback to direct spawn for ALL platforms, but aggressively force color/TTY env vars.
-            // This sacrifices native PTY handling (arrow keys might be limited) for stability.
-            this.ptyProcess = spawn(opencodePath, ['run', '-m', model], {
-                cwd: (this.app.vault.adapter as any).getBasePath(),
-                env: {
-                    ...process.env,
-                    // Force color/TTY-like behavior
-                    FORCE_COLOR: '3', // 3 = TrueColor
-                    CLICOLOR: '1',
-                    CLICOLOR_FORCE: '1',
-                    TERM: 'xterm-256color',
-                    COLORTERM: 'truecolor',
-                    NO_UPDATE_NOTIFIER: '1',
-                    CI: '1' // Sometimes helps tools assume non-interactive but colored
-                }
-            });
+            // Platform specific spawn strategy
+            if (process.platform === 'win32') {
+                this.ptyProcess = spawn(opencodePath, ['run', '-m', model], {
+                    cwd: (this.app.vault.adapter as any).getBasePath(),
+                    env: { ...process.env, TERM: 'xterm-256color' }
+                });
+            } else {
+                // macOS/Linux: Use login shell to ensure PATH and environment are loaded
+                // This fixes "node: command not found" or missing dependencies
+                const shell = '/bin/zsh';
+                const args = ['-l', '-c', `"${opencodePath}" run -m "${model}"`];
+
+                this.terminal.writeln(`Spawning: ${shell} ${args.join(' ')}`);
+
+                this.ptyProcess = spawn(shell, args, {
+                    cwd: (this.app.vault.adapter as any).getBasePath(),
+                    env: {
+                        ...process.env,
+                        TERM: 'xterm-256color',
+                        FORCE_COLOR: '3'
+                    }
+                });
+            }
 
             this.ptyProcess.stdout?.on('data', (data) => {
                 this.terminal.write(data);
@@ -156,18 +163,18 @@ export class TerminalView extends ItemView {
                 this.terminal.write(data);
             });
 
-            this.ptyProcess.on('exit', (code) => {
-                if (code !== 0) {
-                    this.terminal.writeln(`\r\nProcess exited with code ${code}`);
-                } else {
-                    this.terminal.writeln(`\r\nSession ended.`);
-                }
+            this.ptyProcess.on('error', (err) => {
+                this.terminal.writeln(`\r\nSpawn Error: ${err.message}`);
+            });
+
+            this.ptyProcess.on('exit', (code, signal) => {
+                this.terminal.writeln(`\r\nProcess exited. Code: ${code}, Signal: ${signal}`);
             });
 
             this.terminal.focus();
 
         } catch (e) {
-            this.terminal.writeln(`Error starting process: ${e}`);
+            this.terminal.writeln(`Detailed Error: ${e}`);
         }
     }
 
