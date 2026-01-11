@@ -22,14 +22,110 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 		});
 
 		// ==================
-		// Model Configuration
+		// OpenCode Installation & Connection
 		// ==================
-		containerEl.createEl('h2', { text: '🤖 Model Configuration' });
+		containerEl.createEl('h2', { text: '🔌 OpenCode Connection' });
+
+		const statusEl = containerEl.createDiv({ cls: 'opencode-status' });
+		const state = this.plugin.processManager?.getState();
+
+		// OpenCode Path
+		new Setting(containerEl)
+			.setName('OpenCode Path')
+			.setDesc('Path to opencode binary (auto-detected if empty)')
+			.addText(text => text
+				.setPlaceholder('/opt/homebrew/bin/opencode')
+				.setValue(this.plugin.settings.opencodePath)
+				.onChange(async (value) => {
+					this.plugin.settings.opencodePath = value;
+					await this.plugin.saveSettings();
+				}))
+			.addButton(button => button
+				.setButtonText('Test Connection')
+				.setCta()
+				.onClick(async () => {
+					try {
+						const path = await this.plugin.processManager?.findOpenCodePath();
+						statusEl.empty();
+						statusEl.createEl('span', {
+							text: `✅ OpenCode found at: ${path}`,
+							cls: 'opencode-status-running'
+						});
+					} catch {
+						statusEl.empty();
+						statusEl.createEl('span', {
+							text: '❌ OpenCode not found. Please install terminal component.',
+							cls: 'opencode-status-stopped'
+						});
+					}
+				}));
+
+		// Status Display
+		if (state?.sessionID) {
+			statusEl.createEl('span', {
+				text: '🟢 Session Active',
+				cls: 'opencode-status-running'
+			});
+			statusEl.createEl('span', {
+				text: ` (${state.sessionID.substring(0, 15)}...)`,
+				cls: 'opencode-status-detail'
+			});
+		} else {
+			statusEl.createEl('span', {
+				text: '⚪ Ready',
+				cls: 'opencode-status-stopped'
+			});
+		}
+
+		new Setting(containerEl)
+			.setName('Active Session')
+			.setDesc('Manage current CLI session')
+			.addButton(button => button
+				.setButtonText('Clear Session')
+				.onClick(async () => {
+					this.plugin.processManager?.clearSession();
+					this.display();
+				}));
+
+		// Execution Mode
+		new Setting(containerEl)
+			.setName('Execution Mode')
+			.setDesc('How to connect to OpenCode')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('spawn', 'CLI Spawner (Default)')
+					.addOption('server', 'Server Mode (Advanced)')
+					.setValue(this.plugin.settings.executionMode)
+					.onChange(async (value: string) => {
+						this.plugin.settings.executionMode = value as ExecutionMode;
+						await this.plugin.saveSettings();
+						this.display();
+					});
+			});
+
+		// Server Port (only show in server mode)
+		if (this.plugin.settings.executionMode === 'server') {
+			new Setting(containerEl)
+				.setName('Server Port')
+				.setDesc('Port for OpenCode server')
+				.addText(text => text
+					.setPlaceholder('3000')
+					.setValue(String(this.plugin.settings.serverPort))
+					.onChange(async (value) => {
+						this.plugin.settings.serverPort = parseInt(value) || 3000;
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		// ==================
+		// AI Model Settings
+		// ==================
+		containerEl.createEl('h2', { text: '🤖 AI Model Settings' });
 
 		// Provider Selection
 		new Setting(containerEl)
 			.setName('AI Provider')
-			.setDesc('Select your AI model provider')
+			.setDesc('Select "Default" to use your CLI configuration, or override with a specific provider.')
 			.addDropdown(dropdown => {
 				const providers: Record<string, string> = {
 					'default': 'Default (Use OpenCode CLI Config)',
@@ -116,56 +212,9 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 				}));
 
 		// ==================
-		// Connection Settings
+		// UI & Appearance
 		// ==================
-		containerEl.createEl('h2', { text: '🔌 Connection Settings' });
-
-		// Execution Mode
-		new Setting(containerEl)
-			.setName('Execution Mode')
-			.setDesc('How to connect to OpenCode')
-			.addDropdown(dropdown => {
-				dropdown
-					.addOption('spawn', 'CLI Spawner (Default)')
-					.addOption('server', 'Server Mode (Advanced)')
-					.setValue(this.plugin.settings.executionMode)
-					.onChange(async (value: string) => {
-						this.plugin.settings.executionMode = value as ExecutionMode;
-						await this.plugin.saveSettings();
-						this.display();
-					});
-			});
-
-		// Server Port (only show in server mode)
-		if (this.plugin.settings.executionMode === 'server') {
-			new Setting(containerEl)
-				.setName('Server Port')
-				.setDesc('Port for OpenCode server')
-				.addText(text => text
-					.setPlaceholder('3000')
-					.setValue(String(this.plugin.settings.serverPort))
-					.onChange(async (value) => {
-						this.plugin.settings.serverPort = parseInt(value) || 3000;
-						await this.plugin.saveSettings();
-					}));
-		}
-
-		// OpenCode Path
-		new Setting(containerEl)
-			.setName('OpenCode Path')
-			.setDesc('Path to opencode binary (auto-detected if empty)')
-			.addText(text => text
-				.setPlaceholder('/opt/homebrew/bin/opencode')
-				.setValue(this.plugin.settings.opencodePath)
-				.onChange(async (value) => {
-					this.plugin.settings.opencodePath = value;
-					await this.plugin.saveSettings();
-				}));
-
-		// ==================
-		// UI Preferences
-		// ==================
-		containerEl.createEl('h2', { text: '🎨 UI Preferences' });
+		containerEl.createEl('h2', { text: '🎨 UI & Appearance' });
 
 		// Theme
 		new Setting(containerEl)
@@ -230,57 +279,6 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					this.plugin.settings.favoriteModels.push('provider/model-name');
 					await this.plugin.saveSettings();
 					this.display();
-				}));
-
-		// ==================
-		// Status & Actions
-		// ==================
-		containerEl.createEl('h2', { text: '📊 Status' });
-
-		const statusEl = containerEl.createDiv({ cls: 'opencode-status' });
-		const state = this.plugin.processManager?.getState();
-
-		if (state?.sessionID) {
-			statusEl.createEl('span', {
-				text: '🟢 Session Active',
-				cls: 'opencode-status-running'
-			});
-			statusEl.createEl('span', {
-				text: ` (${state.sessionID.substring(0, 15)}...)`,
-				cls: 'opencode-status-detail'
-			});
-		} else {
-			statusEl.createEl('span', {
-				text: '⚪ Ready',
-				cls: 'opencode-status-stopped'
-			});
-		}
-
-		new Setting(containerEl)
-			.addButton(button => button
-				.setButtonText('Clear Session')
-				.onClick(async () => {
-					this.plugin.processManager?.clearSession();
-					this.display();
-				}))
-			.addButton(button => button
-				.setButtonText('Test Connection')
-				.setCta()
-				.onClick(async () => {
-					try {
-						const path = await this.plugin.processManager?.findOpenCodePath();
-						statusEl.empty();
-						statusEl.createEl('span', {
-							text: `✅ OpenCode found at: ${path}`,
-							cls: 'opencode-status-running'
-						});
-					} catch {
-						statusEl.empty();
-						statusEl.createEl('span', {
-							text: '❌ OpenCode not found',
-							cls: 'opencode-status-stopped'
-						});
-					}
 				}));
 	}
 }

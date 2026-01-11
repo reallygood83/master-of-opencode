@@ -16,7 +16,7 @@ export interface OpenCodeSettings {
 }
 
 export const DEFAULT_SETTINGS: OpenCodeSettings = {
-	provider: 'anthropic',
+	provider: 'default',
 	model: 'claude-3-5-sonnet-latest',
 	customApiBaseUrl: '',
 	contextWindowLimit: 128000,
@@ -91,7 +91,10 @@ export const PROVIDERS: Record<Provider, { name: string; models: string[] }> = {
 			'claude-3-5-sonnet-latest',
 			'claude-3-5-sonnet-20241022',
 			'claude-3-5-haiku-latest',
-			'claude-3-opus-latest'
+			'claude-3-opus-latest',
+			'claude-3-opus-20240229',
+			'claude-3-sonnet-20240229',
+			'claude-3-haiku-20240307'
 		]
 	},
 	openai: {
@@ -99,6 +102,9 @@ export const PROVIDERS: Record<Provider, { name: string; models: string[] }> = {
 		models: [
 			'gpt-4o',
 			'gpt-4o-mini',
+			'gpt-4-turbo',
+			'gpt-4',
+			'gpt-3.5-turbo',
 			'o1-preview',
 			'o1-mini'
 		]
@@ -108,7 +114,10 @@ export const PROVIDERS: Record<Provider, { name: string; models: string[] }> = {
 		models: [
 			'gemini-2.0-flash-exp',
 			'gemini-1.5-pro',
-			'gemini-1.5-flash'
+			'gemini-1.5-pro-002',
+			'gemini-1.5-flash',
+			'gemini-1.5-flash-002',
+			'gemini-1.5-flash-8b'
 		]
 	},
 	ollama: {
