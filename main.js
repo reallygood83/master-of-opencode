@@ -679,6 +679,7 @@ var ProcessManager = class extends import_events2.EventEmitter {
     const opencodePath = await this.findOpenCodePath();
     const args = [
       "run",
+      ".",
       "--format",
       "json",
       "--prompt",
@@ -686,7 +687,7 @@ var ProcessManager = class extends import_events2.EventEmitter {
     ];
     if (this.settings.provider !== "default") {
       const modelArg = `${this.settings.provider}/${this.settings.model}`;
-      args.splice(3, 0, "-m", modelArg);
+      args.splice(4, 0, "-m", modelArg);
     }
     if (this.state.sessionID) {
       args.push("-s", this.state.sessionID);
