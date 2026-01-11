@@ -1,4 +1,4 @@
-export type Provider = 'default' | 'anthropic' | 'openai' | 'google' | 'ollama' | 'custom';
+export type Provider = 'default' | 'anthropic' | 'openai' | 'google' | 'xai' | 'opencode' | 'ollama' | 'custom';
 export type ExecutionMode = 'spawn' | 'server';
 export type Theme = 'adaptive' | 'dark' | 'light';
 
@@ -81,33 +81,14 @@ export interface StepFinishEvent {
 }
 
 export const PROVIDERS: Record<Provider, { name: string }> = {
-	default: {
-		name: 'Default (OpenCode Config)'
-	},
-	anthropic: {
-		name: 'Anthropic'
-	},
-	openai: {
-		name: 'OpenAI'
-	},
-	google: {
-		name: 'Google'
-	},
-	ollama: {
-		name: 'Ollama (Local)'
-	},
-	custom: {
-		name: 'Custom'
-	}
+	default: { name: 'Default (OpenCode Config)' },
+	anthropic: { name: 'Anthropic (Claude)' },
+	openai: { name: 'OpenAI (GPT)' },
+	google: { name: 'Google (Gemini)' },
+	xai: { name: 'xAI (Grok)' },
+	opencode: { name: 'OpenCode' },
+	ollama: { name: 'Ollama (Local)' },
+	custom: { name: 'Custom' }
 };
 
-export const IMAGE_CAPABLE_MODELS = [
-	'anthropic/claude-sonnet-4-5',
-	'anthropic/claude-opus-4-5',
-	'xai/grok-4-1-fast',
-	'google/gemini-3-pro-high',
-	'google/gemini-3-pro-medium',
-	'google/gemini-3-pro-low',
-	'google/gemini-3-flash',
-	'google/gemini-3-flash-lite'
-];
+

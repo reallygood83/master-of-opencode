@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, MarkdownRenderer, Menu } from 'obsidian';
 import type OpenCodePlugin from './main';
-import { ChatMessage, ToolEvent, StepFinishEvent, Conversation, IMAGE_CAPABLE_MODELS } from './types';
+import { ChatMessage, ToolEvent, StepFinishEvent, Conversation } from './types';
 
 export const VIEW_TYPE_OPENCODE_CHAT = 'opencode-chat-view';
 
@@ -114,29 +114,14 @@ export class OpenCodeChatView extends ItemView {
 
 		const modelArea = header.createDiv({ cls: 'opencode-header-model' });
 		const modelSelector = modelArea.createEl('select', { cls: 'opencode-model-selector' });
-
-		IMAGE_CAPABLE_MODELS.forEach(model => {
-			const option = modelSelector.createEl('option', { value: model, text: `${model} 🖼️` });
-			if (model === `${this.plugin.settings.provider}/${this.plugin.settings.model}`) {
-				option.selected = true;
-			}
-		});
-
-		const currentModel = `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
-		if (!IMAGE_CAPABLE_MODELS.includes(currentModel)) {
-			modelSelector.createEl('option', {
-				value: currentModel,
-				text: currentModel,
-				attr: { selected: 'true' }
-			});
-		}
+		
+		this.loadModelsIntoSelector(modelSelector);
 
 		modelSelector.addEventListener('change', async (e) => {
 			const value = (e.target as HTMLSelectElement).value;
-			const [provider, ...modelParts] = value.split('/');
-			const model = modelParts.join('/');
+			this.plugin.settings.model = value;
+			const [provider] = value.split('/');
 			this.plugin.settings.provider = provider as any;
-			this.plugin.settings.model = model;
 			await this.plugin.saveSettings();
 			this.plugin.processManager?.clearSession();
 			this.updateStatusIndicator();
@@ -524,6 +509,29 @@ export class OpenCodeChatView extends ItemView {
 		this.plugin.processManager?.clearSession();
 		const conversation = this.plugin.conversationStore.createConversation();
 		this.renderConversation(conversation);
+	}
+
+	private async loadModelsIntoSelector(selector: HTMLSelectElement): Promise<void> {
+		const currentModel = this.plugin.settings.model.includes('/')
+			? this.plugin.settings.model
+			: `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
+
+		selector.createEl('option', { value: currentModel, text: currentModel });
+
+		try {
+			const models = await this.plugin.processManager?.getAvailableModels();
+			if (models && models.length > 0) {
+				selector.empty();
+				models.forEach((model: string) => {
+					const option = selector.createEl('option', { value: model, text: model });
+					if (model === currentModel) {
+						option.selected = true;
+					}
+				});
+			}
+		} catch {
+			return;
+		}
 	}
 
 	async onClose(): Promise<void> {

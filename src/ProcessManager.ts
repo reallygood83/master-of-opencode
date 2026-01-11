@@ -292,16 +292,16 @@ export class ProcessManager extends EventEmitter {
 	private async executeMessage(message: string): Promise<void> {
 		const opencodePath = await this.findOpenCodePath();
 
+		const modelArg = this.settings.model.includes('/')
+			? this.settings.model
+			: `${this.settings.provider}/${this.settings.model}`;
+
 		const args = [
 			'run',
 			'--format', 'json',
+			'-m', modelArg,
 			message
 		];
-
-		if (this.settings.provider !== 'default') {
-			const modelArg = `${this.settings.provider}/${this.settings.model}`;
-			args.splice(2, 0, '-m', modelArg);
-		}
 
 		if (this.state.sessionID) {
 			args.push('-s', this.state.sessionID);

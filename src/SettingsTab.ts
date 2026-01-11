@@ -273,33 +273,28 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					});
 			});
 
-		new Setting(containerEl)
+		const modelSetting = new Setting(containerEl)
 			.setName('Model')
-			.setDesc('Select model from OpenCode CLI (refresh after login)')
-			.addDropdown(dropdown => {
-				if (this.plugin.settings.provider === 'default') {
-					dropdown.addOption('default', 'Use CLI Default');
-					dropdown.setValue('default');
-				} else {
-					const provider = this.plugin.settings.provider;
-					dropdown.addOption(`${provider}/model-name`, `Select ${provider} model from CLI`);
-				}
+			.setDesc('Select model from OpenCode CLI');
 
-				dropdown
-					.onChange(async (value: string) => {
-						if (this.plugin.settings.provider !== 'default') {
-							this.plugin.settings.model = value.split('/')[1] || value;
-						}
-						await this.plugin.saveSettings();
-					});
-			})
-			.addText(text => text
-				.setPlaceholder('Or enter custom model ID (provider/model)')
-				.setValue(this.plugin.settings.model)
-				.onChange(async (value) => {
-					this.plugin.settings.model = value;
-					await this.plugin.saveSettings();
-				}));
+		const modelDropdown = modelSetting.controlEl.createEl('select', { cls: 'dropdown' });
+		this.loadModelsIntoDropdown(modelDropdown);
+
+		modelDropdown.addEventListener('change', async () => {
+			const value = modelDropdown.value;
+			this.plugin.settings.model = value;
+			const [provider] = value.split('/');
+			this.plugin.settings.provider = provider as Provider;
+			await this.plugin.saveSettings();
+		});
+
+		modelSetting.addText(text => text
+			.setPlaceholder('Or enter custom model (provider/model)')
+			.setValue(this.plugin.settings.model)
+			.onChange(async (value) => {
+				this.plugin.settings.model = value;
+				await this.plugin.saveSettings();
+			}));
 
 		new Setting(containerEl)
 			.setName('Custom API Base URL')
@@ -384,5 +379,28 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					this.display();
 				}));
+	}
+
+	private async loadModelsIntoDropdown(dropdown: HTMLSelectElement): Promise<void> {
+		const currentModel = this.plugin.settings.model.includes('/')
+			? this.plugin.settings.model
+			: `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
+
+		dropdown.createEl('option', { value: currentModel, text: currentModel });
+
+		try {
+			const models = await this.plugin.processManager?.getAvailableModels();
+			if (models && models.length > 0) {
+				dropdown.empty();
+				models.forEach((model: string) => {
+					const option = dropdown.createEl('option', { value: model, text: model });
+					if (model === currentModel) {
+						option.selected = true;
+					}
+				});
+			}
+		} catch {
+			return;
+		}
 	}
 }

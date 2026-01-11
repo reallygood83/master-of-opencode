@@ -56,16 +56,6 @@ var DEFAULT_SETTINGS = {
     "google/gemini-3-pro-high"
   ]
 };
-var IMAGE_CAPABLE_MODELS = [
-  "anthropic/claude-sonnet-4-5",
-  "anthropic/claude-opus-4-5",
-  "xai/grok-4-1-fast",
-  "google/gemini-3-pro-high",
-  "google/gemini-3-pro-medium",
-  "google/gemini-3-pro-low",
-  "google/gemini-3-flash",
-  "google/gemini-3-flash-lite"
-];
 
 // src/SettingsTab.ts
 var import_obsidian = require("obsidian");
@@ -259,21 +249,17 @@ var OpenCodeSettingTab = class extends import_obsidian.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian.Setting(containerEl).setName("Model").setDesc("Select model from OpenCode CLI (refresh after login)").addDropdown((dropdown) => {
-      if (this.plugin.settings.provider === "default") {
-        dropdown.addOption("default", "Use CLI Default");
-        dropdown.setValue("default");
-      } else {
-        const provider = this.plugin.settings.provider;
-        dropdown.addOption(`${provider}/model-name`, `Select ${provider} model from CLI`);
-      }
-      dropdown.onChange(async (value) => {
-        if (this.plugin.settings.provider !== "default") {
-          this.plugin.settings.model = value.split("/")[1] || value;
-        }
-        await this.plugin.saveSettings();
-      });
-    }).addText((text) => text.setPlaceholder("Or enter custom model ID (provider/model)").setValue(this.plugin.settings.model).onChange(async (value) => {
+    const modelSetting = new import_obsidian.Setting(containerEl).setName("Model").setDesc("Select model from OpenCode CLI");
+    const modelDropdown = modelSetting.controlEl.createEl("select", { cls: "dropdown" });
+    this.loadModelsIntoDropdown(modelDropdown);
+    modelDropdown.addEventListener("change", async () => {
+      const value = modelDropdown.value;
+      this.plugin.settings.model = value;
+      const [provider] = value.split("/");
+      this.plugin.settings.provider = provider;
+      await this.plugin.saveSettings();
+    });
+    modelSetting.addText((text) => text.setPlaceholder("Or enter custom model (provider/model)").setValue(this.plugin.settings.model).onChange(async (value) => {
       this.plugin.settings.model = value;
       await this.plugin.saveSettings();
     }));
@@ -316,6 +302,25 @@ var OpenCodeSettingTab = class extends import_obsidian.PluginSettingTab {
       await this.plugin.saveSettings();
       this.display();
     }));
+  }
+  async loadModelsIntoDropdown(dropdown) {
+    var _a;
+    const currentModel = this.plugin.settings.model.includes("/") ? this.plugin.settings.model : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
+    dropdown.createEl("option", { value: currentModel, text: currentModel });
+    try {
+      const models = await ((_a = this.plugin.processManager) == null ? void 0 : _a.getAvailableModels());
+      if (models && models.length > 0) {
+        dropdown.empty();
+        models.forEach((model) => {
+          const option = dropdown.createEl("option", { value: model, text: model });
+          if (model === currentModel) {
+            option.selected = true;
+          }
+        });
+      }
+    } catch (e) {
+      return;
+    }
   }
 };
 
@@ -677,16 +682,15 @@ var ProcessManager = class extends import_events2.EventEmitter {
   }
   async executeMessage(message) {
     const opencodePath = await this.findOpenCodePath();
+    const modelArg = this.settings.model.includes("/") ? this.settings.model : `${this.settings.provider}/${this.settings.model}`;
     const args = [
       "run",
       "--format",
       "json",
+      "-m",
+      modelArg,
       message
     ];
-    if (this.settings.provider !== "default") {
-      const modelArg = `${this.settings.provider}/${this.settings.model}`;
-      args.splice(2, 0, "-m", modelArg);
-    }
     if (this.state.sessionID) {
       args.push("-s", this.state.sessionID);
     }
@@ -967,27 +971,13 @@ var OpenCodeChatView = class extends import_obsidian2.ItemView {
     titleArea.createSpan({ text: "OpenCode", cls: "opencode-title" });
     const modelArea = header.createDiv({ cls: "opencode-header-model" });
     const modelSelector = modelArea.createEl("select", { cls: "opencode-model-selector" });
-    IMAGE_CAPABLE_MODELS.forEach((model) => {
-      const option = modelSelector.createEl("option", { value: model, text: `${model} \u{1F5BC}\uFE0F` });
-      if (model === `${this.plugin.settings.provider}/${this.plugin.settings.model}`) {
-        option.selected = true;
-      }
-    });
-    const currentModel = `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
-    if (!IMAGE_CAPABLE_MODELS.includes(currentModel)) {
-      modelSelector.createEl("option", {
-        value: currentModel,
-        text: currentModel,
-        attr: { selected: "true" }
-      });
-    }
+    this.loadModelsIntoSelector(modelSelector);
     modelSelector.addEventListener("change", async (e) => {
       var _a;
       const value = e.target.value;
-      const [provider, ...modelParts] = value.split("/");
-      const model = modelParts.join("/");
+      this.plugin.settings.model = value;
+      const [provider] = value.split("/");
       this.plugin.settings.provider = provider;
-      this.plugin.settings.model = model;
       await this.plugin.saveSettings();
       (_a = this.plugin.processManager) == null ? void 0 : _a.clearSession();
       this.updateStatusIndicator();
@@ -1344,6 +1334,25 @@ ${content}
     (_a = this.plugin.processManager) == null ? void 0 : _a.clearSession();
     const conversation = this.plugin.conversationStore.createConversation();
     this.renderConversation(conversation);
+  }
+  async loadModelsIntoSelector(selector) {
+    var _a;
+    const currentModel = this.plugin.settings.model.includes("/") ? this.plugin.settings.model : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
+    selector.createEl("option", { value: currentModel, text: currentModel });
+    try {
+      const models = await ((_a = this.plugin.processManager) == null ? void 0 : _a.getAvailableModels());
+      if (models && models.length > 0) {
+        selector.empty();
+        models.forEach((model) => {
+          const option = selector.createEl("option", { value: model, text: model });
+          if (model === currentModel) {
+            option.selected = true;
+          }
+        });
+      }
+    } catch (e) {
+      return;
+    }
   }
   async onClose() {
     await this.plugin.conversationStore.save();
