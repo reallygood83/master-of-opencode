@@ -386,15 +386,6 @@ var StreamParser = class extends import_events.EventEmitter {
         this.handleToolEvent(event);
         break;
       case "step_finish":
-        if (this.buffer.trim()) {
-          const pending = this.buffer.trim();
-          this.buffer = "";
-          this.emit("event", {
-            type: "text",
-            content: pending,
-            messageID: "flush-pre-finish"
-          });
-        }
         this.emit("event", {
           type: "step_finish",
           reason: event.part.reason,
