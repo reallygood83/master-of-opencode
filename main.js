@@ -7639,29 +7639,31 @@ var TerminalView = class extends import_obsidian2.ItemView {
     this.terminal.clear();
     this.terminal.writeln("Initializing OpenCode...");
     const opencodePath = await ((_a = this.plugin.processManager) == null ? void 0 : _a.findOpenCodePath()) || "opencode";
-    this.terminal.writeln(`Executable: ${opencodePath}`);
     const model = this.plugin.settings.model.includes("/") ? this.plugin.settings.model : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
     try {
       const env = { ...process.env };
-      const pathSep = process.platform === "win32" ? ";" : ":";
-      const extraPaths = [
-        "/opt/homebrew/bin",
-        "/usr/local/bin",
-        "/usr/bin",
-        "/bin",
-        `${process.env.HOME}/.nvm/current/bin`,
-        `${process.env.HOME}/.bun/bin`,
-        `${process.env.HOME}/.cargo/bin`
-      ];
-      env.PATH = extraPaths.join(pathSep) + pathSep + (env.PATH || "");
+      if (process.platform !== "win32") {
+        const extraPaths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"];
+        env.PATH = extraPaths.join(":") + ":" + (env.PATH || "");
+      }
       env.FORCE_COLOR = "3";
       env.TERM = "xterm-256color";
       env.COLORTERM = "truecolor";
-      this.terminal.writeln(`Spawning process directly...`);
-      this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, ["run", "-m", model], {
-        cwd: this.app.vault.adapter.getBasePath(),
-        env
-      });
+      env.LANG = "en_US.UTF-8";
+      if (process.platform === "win32") {
+        this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, ["run", "-m", model], {
+          cwd: this.app.vault.adapter.getBasePath(),
+          env,
+          shell: true
+        });
+      } else {
+        const pythonScript = `import pty, sys; pty.spawn(["${opencodePath}", "run", "-m", "${model}"])`;
+        this.terminal.writeln(`Requesting PTY via Python...`);
+        this.ptyProcess = (0, import_child_process2.spawn)("python3", ["-c", pythonScript], {
+          cwd: this.app.vault.adapter.getBasePath(),
+          env
+        });
+      }
       (_b = this.ptyProcess.stdout) == null ? void 0 : _b.on("data", (data) => {
         this.terminal.write(data);
       });
@@ -7670,12 +7672,15 @@ var TerminalView = class extends import_obsidian2.ItemView {
       });
       this.ptyProcess.on("error", (err) => {
         this.terminal.writeln(`\r
-Spawn Error: ${err.message}`);
-        this.terminal.writeln(`Check if 'node' is in your PATH.`);
+[Fatal Error]: ${err.message}`);
+        if (process.platform !== "win32") {
+          this.terminal.writeln("Please ensure python3 is installed and in your PATH.");
+        }
       });
       this.ptyProcess.on("exit", (code, signal) => {
         this.terminal.writeln(`\r
-Process exited. Code: ${code}, Signal: ${signal}`);
+\r
+--- Session Ended (Code: ${code}, Signal: ${signal}) ---`);
       });
       this.terminal.focus();
     } catch (e) {

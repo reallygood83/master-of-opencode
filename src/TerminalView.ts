@@ -124,41 +124,43 @@ export class TerminalView extends ItemView {
         this.terminal.writeln('Initializing OpenCode...');
 
         const opencodePath = await this.plugin.processManager?.findOpenCodePath() || 'opencode';
-        this.terminal.writeln(`Executable: ${opencodePath}`);
-
         const model = this.plugin.settings.model.includes('/')
             ? this.plugin.settings.model
             : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
 
         try {
-            // Reverting to direct spawn with MANUAL PATH injection.
-            // Zsh wrapper caused SIGTERM issues.
-            // Script wrapper caused socket issues.
-            // Direct spawn is safe IF we manually ensure node/tools are in PATH.
             const env = { ...process.env };
-            const pathSep = process.platform === 'win32' ? ';' : ':';
-            const extraPaths = [
-                '/opt/homebrew/bin',
-                '/usr/local/bin',
-                '/usr/bin',
-                '/bin',
-                `${process.env.HOME}/.nvm/current/bin`,
-                `${process.env.HOME}/.bun/bin`,
-                `${process.env.HOME}/.cargo/bin`
-            ];
-            env.PATH = extraPaths.join(pathSep) + pathSep + (env.PATH || '');
+            // Inject common paths for macOS/Linux
+            if (process.platform !== 'win32') {
+                const extraPaths = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin'];
+                env.PATH = extraPaths.join(':') + ':' + (env.PATH || '');
+            }
 
-            // Force color support for non-TTY environments
             env.FORCE_COLOR = '3';
             env.TERM = 'xterm-256color';
             env.COLORTERM = 'truecolor';
+            env.LANG = 'en_US.UTF-8';
 
-            this.terminal.writeln(`Spawning process directly...`);
+            if (process.platform === 'win32') {
+                // Windows: Direct spawn is the only lightweight option
+                this.ptyProcess = spawn(opencodePath, ['run', '-m', model], {
+                    cwd: (this.app.vault.adapter as any).getBasePath(),
+                    env: env,
+                    shell: true
+                });
+            } else {
+                // macOS/Linux: Use python3 PTY bridge. 
+                // This provides a REAL TTY which interactive apps like Claude Code REQUIRE.
+                // It avoids the 'socket' error of 'script' command.
+                const pythonScript = `import pty, sys; pty.spawn(["${opencodePath}", "run", "-m", "${model}"])`;
 
-            this.ptyProcess = spawn(opencodePath, ['run', '-m', model], {
-                cwd: (this.app.vault.adapter as any).getBasePath(),
-                env: env
-            });
+                this.terminal.writeln(`Requesting PTY via Python...`);
+
+                this.ptyProcess = spawn('python3', ['-c', pythonScript], {
+                    cwd: (this.app.vault.adapter as any).getBasePath(),
+                    env: env
+                });
+            }
 
             this.ptyProcess.stdout?.on('data', (data) => {
                 this.terminal.write(data);
@@ -169,12 +171,14 @@ export class TerminalView extends ItemView {
             });
 
             this.ptyProcess.on('error', (err) => {
-                this.terminal.writeln(`\r\nSpawn Error: ${err.message}`);
-                this.terminal.writeln(`Check if 'node' is in your PATH.`);
+                this.terminal.writeln(`\r\n[Fatal Error]: ${err.message}`);
+                if (process.platform !== 'win32') {
+                    this.terminal.writeln('Please ensure python3 is installed and in your PATH.');
+                }
             });
 
             this.ptyProcess.on('exit', (code, signal) => {
-                this.terminal.writeln(`\r\nProcess exited. Code: ${code}, Signal: ${signal}`);
+                this.terminal.writeln(`\r\n\r\n--- Session Ended (Code: ${code}, Signal: ${signal}) ---`);
             });
 
             this.terminal.focus();
