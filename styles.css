@@ -528,3 +528,41 @@
 		transform: translateX(100%);
 	}
 }
+/* Terminal View Styles */
+.opencode-terminal-container {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	background-color: #1e1e1e;
+	overflow: hidden;
+}
+
+.opencode-terminal-toolbar {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	padding: 8px;
+	background-color: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	gap: 8px;
+}
+
+.opencode-xterm-wrapper {
+	flex-grow: 1;
+	overflow: hidden;
+	padding: 8px;
+	position: relative;
+}
+
+/* Hide scrollbars in terminal but allow scrolling */
+.opencode-xterm-wrapper .xterm-viewport {
+	overflow-y: auto !important;
+}
+
+/* Ensure settings button looks right */
+.opencode-terminal-toolbar .clickable-icon {
+	color: var(--text-muted);
+}
+.opencode-terminal-toolbar .clickable-icon:hover {
+	color: var(--text-normal);
+}
