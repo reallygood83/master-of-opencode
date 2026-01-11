@@ -1,0 +1,504 @@
+/* Master of OpenCode - Premium UI Styles */
+
+/* Container & Layout */
+.opencode-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background: var(--background-primary);
+	font-family: var(--font-interface);
+}
+
+/* Header - Glassmorphism */
+.opencode-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	background: linear-gradient(135deg,
+		rgba(var(--background-modifier-border-rgb), 0.4) 0%,
+		rgba(var(--background-modifier-border-rgb), 0.2) 100%);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	border-bottom: 1px solid var(--background-modifier-border);
+	gap: 12px;
+}
+
+.opencode-header-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.opencode-logo {
+	font-size: 1.4em;
+	animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+	0%, 100% { opacity: 1; transform: scale(1); }
+	50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+.opencode-title {
+	font-weight: 700;
+	font-size: 1.1em;
+	background: linear-gradient(135deg, var(--text-accent) 0%, var(--interactive-accent) 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+.opencode-header-model {
+	flex: 1;
+	max-width: 200px;
+}
+
+.opencode-model-selector {
+	width: 100%;
+	padding: 6px 10px;
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 0.85em;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.opencode-model-selector:hover {
+	border-color: var(--interactive-accent);
+}
+
+.opencode-model-selector:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.opencode-header-status {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.status-dot {
+	font-size: 0.7em;
+}
+
+.opencode-header-actions {
+	display: flex;
+	gap: 4px;
+}
+
+.opencode-btn {
+	padding: 6px 12px;
+	border-radius: 6px;
+	border: none;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.opencode-btn:hover {
+	background: var(--background-modifier-hover);
+	transform: translateY(-1px);
+}
+
+.opencode-btn-icon {
+	padding: 6px 8px;
+	font-size: 1em;
+}
+
+/* Messages Container */
+.opencode-messages {
+	flex: 1;
+	overflow-y: auto;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.opencode-messages::-webkit-scrollbar {
+	width: 6px;
+}
+
+.opencode-messages::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.opencode-messages::-webkit-scrollbar-thumb {
+	background: var(--background-modifier-border);
+	border-radius: 3px;
+}
+
+/* Message Bubbles */
+.opencode-message {
+	max-width: 85%;
+	animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.opencode-message-content {
+	padding: 12px 16px;
+	border-radius: 16px;
+	line-height: 1.5;
+}
+
+/* User Message */
+.opencode-message-user {
+	align-self: flex-end;
+}
+
+.opencode-message-user .opencode-message-content {
+	background: linear-gradient(135deg, var(--interactive-accent) 0%, var(--interactive-accent-hover) 100%);
+	color: white;
+	border-bottom-right-radius: 4px;
+}
+
+/* Assistant Message */
+.opencode-message-assistant {
+	align-self: flex-start;
+}
+
+.opencode-message-assistant .opencode-message-content {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-bottom-left-radius: 4px;
+}
+
+.opencode-message-assistant.streaming .opencode-message-content::after {
+	content: '▊';
+	animation: blink 1s infinite;
+	color: var(--interactive-accent);
+}
+
+@keyframes blink {
+	0%, 50% { opacity: 1; }
+	51%, 100% { opacity: 0; }
+}
+
+/* System Message */
+.opencode-message-system {
+	align-self: center;
+	max-width: 90%;
+}
+
+.opencode-message-system .opencode-message-content {
+	background: var(--background-modifier-message);
+	color: var(--text-muted);
+	font-size: 0.9em;
+	text-align: center;
+	border-radius: 8px;
+	padding: 8px 16px;
+}
+
+/* Tool Message */
+.opencode-message-tool {
+	align-self: flex-start;
+	max-width: 90%;
+}
+
+.opencode-tool-block {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.opencode-tool-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	background: linear-gradient(135deg, 
+		rgba(var(--interactive-accent-rgb), 0.1) 0%, 
+		rgba(var(--interactive-accent-rgb), 0.05) 100%);
+	border-left: 3px solid var(--interactive-accent);
+}
+
+.opencode-tool-icon {
+	font-size: 1em;
+}
+
+.opencode-tool-name {
+	font-family: var(--font-monospace);
+	color: var(--text-accent);
+	font-weight: 500;
+	flex: 1;
+}
+
+.opencode-tool-status {
+	font-size: 0.8em;
+	padding: 2px 8px;
+	border-radius: 10px;
+	background: var(--background-primary);
+}
+
+.opencode-tool-status.status-pending {
+	color: var(--text-muted);
+}
+
+.opencode-tool-status.status-running {
+	color: var(--text-accent);
+}
+
+.opencode-tool-status.status-completed {
+	color: var(--text-success, #4ade80);
+}
+
+.opencode-tool-status.status-error {
+	color: var(--text-error);
+}
+
+.opencode-tool-toggle {
+	background: none;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 4px;
+}
+
+.opencode-tool-toggle:hover {
+	background: var(--background-modifier-hover);
+}
+
+.opencode-tool-output {
+	padding: 8px 12px;
+	background: var(--background-primary-alt);
+	border-top: 1px solid var(--background-modifier-border);
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.opencode-tool-output.collapsed {
+	display: none;
+}
+
+.opencode-tool-output pre {
+	margin: 0;
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	white-space: pre-wrap;
+	word-break: break-word;
+	color: var(--text-muted);
+}
+
+.opencode-tool-error {
+	padding: 8px 12px;
+	background: rgba(var(--text-error-rgb, 239, 68, 68), 0.1);
+	color: var(--text-error);
+	font-size: 0.85em;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Token Usage */
+.opencode-token-usage {
+	align-self: flex-end;
+	font-size: 0.75em;
+	color: var(--text-muted);
+	padding: 4px 8px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+	display: flex;
+	gap: 8px;
+}
+
+.token-label {
+	opacity: 0.7;
+}
+
+.token-in {
+	color: var(--text-accent);
+}
+
+.token-out {
+	color: var(--text-success, #4ade80);
+}
+
+.token-cache {
+	color: var(--text-warning, #f59e0b);
+}
+
+/* Code Blocks in Messages */
+.opencode-message-content pre {
+	background: var(--background-primary-alt);
+	border-radius: 8px;
+	padding: 12px;
+	overflow-x: auto;
+	margin: 8px 0;
+}
+
+.opencode-message-content code {
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+}
+
+.opencode-message-content p {
+	margin: 0 0 8px 0;
+}
+
+.opencode-message-content p:last-child {
+	margin-bottom: 0;
+}
+
+/* Input Area */
+.opencode-input-container {
+	display: flex;
+	gap: 8px;
+	padding: 12px 16px;
+	background: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.opencode-input {
+	flex: 1;
+	padding: 12px 16px;
+	border-radius: 12px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.95em;
+	resize: none;
+	min-height: 44px;
+	max-height: 200px;
+	font-family: var(--font-interface);
+	line-height: 1.4;
+	transition: all 0.2s ease;
+}
+
+.opencode-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 3px rgba(var(--interactive-accent-rgb), 0.15);
+}
+
+.opencode-input::placeholder {
+	color: var(--text-muted);
+}
+
+.opencode-send-btn {
+	width: 44px;
+	height: 44px;
+	border-radius: 12px;
+	border: none;
+	background: linear-gradient(135deg, var(--interactive-accent) 0%, var(--interactive-accent-hover) 100%);
+	color: white;
+	font-size: 1.2em;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.opencode-send-btn:hover {
+	transform: scale(1.05);
+	box-shadow: 0 4px 12px rgba(var(--interactive-accent-rgb), 0.3);
+}
+
+.opencode-send-btn:active {
+	transform: scale(0.98);
+}
+
+/* Settings Status */
+.opencode-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	margin-bottom: 16px;
+	flex-wrap: wrap;
+}
+
+.opencode-status-running {
+	color: var(--text-success, #4ade80);
+}
+
+.opencode-status-stopped {
+	color: var(--text-muted);
+}
+
+.opencode-status-detail {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	font-family: var(--font-monospace);
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+	.opencode-header {
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.opencode-header-model {
+		max-width: none;
+		order: 3;
+		width: 100%;
+	}
+
+	.opencode-message {
+		max-width: 95%;
+	}
+}
+
+/* Dark/Light Theme Adaptations */
+.theme-dark .opencode-header {
+	background: linear-gradient(135deg,
+		rgba(30, 30, 30, 0.8) 0%,
+		rgba(20, 20, 20, 0.6) 100%);
+}
+
+.theme-light .opencode-header {
+	background: linear-gradient(135deg,
+		rgba(255, 255, 255, 0.9) 0%,
+		rgba(240, 240, 240, 0.7) 100%);
+}
+
+/* Animations */
+.opencode-tool-block.running .opencode-tool-icon {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+/* Loading indicator for streaming */
+.opencode-message-assistant.streaming::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 2px;
+	background: linear-gradient(90deg, 
+		transparent, 
+		var(--interactive-accent), 
+		transparent);
+	animation: loading 1.5s ease-in-out infinite;
+}
+
+@keyframes loading {
+	0% { transform: translateX(-100%); }
+	100% { transform: translateX(100%); }
+}

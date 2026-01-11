@@ -1,0 +1,10 @@
+{
+	"id": "master-of-opencode",
+	"name": "Master of OpenCode",
+	"version": "0.1.0",
+	"minAppVersion": "1.0.0",
+	"description": "Integrate OpenCode CLI agent into Obsidian - Universal AI development environment",
+	"author": "moon",
+	"authorUrl": "https://github.com/moon",
+	"isDesktopOnly": true
+}
