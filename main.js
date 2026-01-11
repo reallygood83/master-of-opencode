@@ -7642,24 +7642,26 @@ var TerminalView = class extends import_obsidian2.ItemView {
     this.terminal.writeln(`Executable: ${opencodePath}`);
     const model = this.plugin.settings.model.includes("/") ? this.plugin.settings.model : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
     try {
-      if (process.platform === "win32") {
-        this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, ["run", "-m", model], {
-          cwd: this.app.vault.adapter.getBasePath(),
-          env: { ...process.env, TERM: "xterm-256color" }
-        });
-      } else {
-        const shell = "/bin/zsh";
-        const args = ["-l", "-c", `"${opencodePath}" run -m "${model}"`];
-        this.terminal.writeln(`Spawning: ${shell} ${args.join(" ")}`);
-        this.ptyProcess = (0, import_child_process2.spawn)(shell, args, {
-          cwd: this.app.vault.adapter.getBasePath(),
-          env: {
-            ...process.env,
-            TERM: "xterm-256color",
-            FORCE_COLOR: "3"
-          }
-        });
-      }
+      const env = { ...process.env };
+      const pathSep = process.platform === "win32" ? ";" : ":";
+      const extraPaths = [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+        `${process.env.HOME}/.nvm/current/bin`,
+        `${process.env.HOME}/.bun/bin`,
+        `${process.env.HOME}/.cargo/bin`
+      ];
+      env.PATH = extraPaths.join(pathSep) + pathSep + (env.PATH || "");
+      env.FORCE_COLOR = "3";
+      env.TERM = "xterm-256color";
+      env.COLORTERM = "truecolor";
+      this.terminal.writeln(`Spawning process directly...`);
+      this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, ["run", "-m", model], {
+        cwd: this.app.vault.adapter.getBasePath(),
+        env
+      });
       (_b = this.ptyProcess.stdout) == null ? void 0 : _b.on("data", (data) => {
         this.terminal.write(data);
       });
@@ -7669,6 +7671,7 @@ var TerminalView = class extends import_obsidian2.ItemView {
       this.ptyProcess.on("error", (err) => {
         this.terminal.writeln(`\r
 Spawn Error: ${err.message}`);
+        this.terminal.writeln(`Check if 'node' is in your PATH.`);
       });
       this.ptyProcess.on("exit", (code, signal) => {
         this.terminal.writeln(`\r

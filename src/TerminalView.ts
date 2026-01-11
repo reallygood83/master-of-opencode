@@ -131,29 +131,34 @@ export class TerminalView extends ItemView {
             : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
 
         try {
-            // Platform specific spawn strategy
-            if (process.platform === 'win32') {
-                this.ptyProcess = spawn(opencodePath, ['run', '-m', model], {
-                    cwd: (this.app.vault.adapter as any).getBasePath(),
-                    env: { ...process.env, TERM: 'xterm-256color' }
-                });
-            } else {
-                // macOS/Linux: Use login shell to ensure PATH and environment are loaded
-                // This fixes "node: command not found" or missing dependencies
-                const shell = '/bin/zsh';
-                const args = ['-l', '-c', `"${opencodePath}" run -m "${model}"`];
+            // Reverting to direct spawn with MANUAL PATH injection.
+            // Zsh wrapper caused SIGTERM issues.
+            // Script wrapper caused socket issues.
+            // Direct spawn is safe IF we manually ensure node/tools are in PATH.
+            const env = { ...process.env };
+            const pathSep = process.platform === 'win32' ? ';' : ':';
+            const extraPaths = [
+                '/opt/homebrew/bin',
+                '/usr/local/bin',
+                '/usr/bin',
+                '/bin',
+                `${process.env.HOME}/.nvm/current/bin`,
+                `${process.env.HOME}/.bun/bin`,
+                `${process.env.HOME}/.cargo/bin`
+            ];
+            env.PATH = extraPaths.join(pathSep) + pathSep + (env.PATH || '');
 
-                this.terminal.writeln(`Spawning: ${shell} ${args.join(' ')}`);
+            // Force color support for non-TTY environments
+            env.FORCE_COLOR = '3';
+            env.TERM = 'xterm-256color';
+            env.COLORTERM = 'truecolor';
 
-                this.ptyProcess = spawn(shell, args, {
-                    cwd: (this.app.vault.adapter as any).getBasePath(),
-                    env: {
-                        ...process.env,
-                        TERM: 'xterm-256color',
-                        FORCE_COLOR: '3'
-                    }
-                });
-            }
+            this.terminal.writeln(`Spawning process directly...`);
+
+            this.ptyProcess = spawn(opencodePath, ['run', '-m', model], {
+                cwd: (this.app.vault.adapter as any).getBasePath(),
+                env: env
+            });
 
             this.ptyProcess.stdout?.on('data', (data) => {
                 this.terminal.write(data);
@@ -165,6 +170,7 @@ export class TerminalView extends ItemView {
 
             this.ptyProcess.on('error', (err) => {
                 this.terminal.writeln(`\r\nSpawn Error: ${err.message}`);
+                this.terminal.writeln(`Check if 'node' is in your PATH.`);
             });
 
             this.ptyProcess.on('exit', (code, signal) => {
