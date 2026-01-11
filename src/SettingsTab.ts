@@ -32,6 +32,7 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 			.setDesc('Select your AI model provider')
 			.addDropdown(dropdown => {
 				const providers: Record<string, string> = {
+					'default': 'Default (Use OpenCode CLI Config)',
 					'anthropic': 'Anthropic (Claude)',
 					'openai': 'OpenAI (GPT)',
 					'google': 'Google (Gemini)',
@@ -58,34 +59,36 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 			});
 
 		// Model Selection
-		new Setting(containerEl)
-			.setName('Model')
-			.setDesc('Select the specific model to use')
-			.addDropdown(dropdown => {
-				const providerConfig = PROVIDERS[this.plugin.settings.provider];
+		if (this.plugin.settings.provider !== 'default') {
+			new Setting(containerEl)
+				.setName('Model')
+				.setDesc('Select the specific model to use')
+				.addDropdown(dropdown => {
+					const providerConfig = PROVIDERS[this.plugin.settings.provider];
 
-				if (providerConfig && providerConfig.models.length > 0) {
-					providerConfig.models.forEach(model => {
-						dropdown.addOption(model, model);
-					});
-				} else {
-					dropdown.addOption('custom', 'Enter custom model below');
-				}
+					if (providerConfig && providerConfig.models.length > 0) {
+						providerConfig.models.forEach(model => {
+							dropdown.addOption(model, model);
+						});
+					} else {
+						dropdown.addOption('custom', 'Enter custom model below');
+					}
 
-				dropdown
+					dropdown
+						.setValue(this.plugin.settings.model)
+						.onChange(async (value) => {
+							this.plugin.settings.model = value;
+							await this.plugin.saveSettings();
+						});
+				})
+				.addText(text => text
+					.setPlaceholder('Or enter custom model ID')
 					.setValue(this.plugin.settings.model)
 					.onChange(async (value) => {
 						this.plugin.settings.model = value;
 						await this.plugin.saveSettings();
-					});
-			})
-			.addText(text => text
-				.setPlaceholder('Or enter custom model ID')
-				.setValue(this.plugin.settings.model)
-				.onChange(async (value) => {
-					this.plugin.settings.model = value;
-					await this.plugin.saveSettings();
-				}));
+					}));
+		}
 
 		// Custom API Base URL
 		new Setting(containerEl)

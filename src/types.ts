@@ -1,4 +1,4 @@
-export type Provider = 'anthropic' | 'openai' | 'google' | 'ollama' | 'custom';
+export type Provider = 'default' | 'anthropic' | 'openai' | 'google' | 'ollama' | 'custom';
 export type ExecutionMode = 'spawn' | 'server';
 export type Theme = 'adaptive' | 'dark' | 'light';
 
@@ -81,6 +81,10 @@ export interface StepFinishEvent {
 }
 
 export const PROVIDERS: Record<Provider, { name: string; models: string[] }> = {
+	default: {
+		name: 'Default (OpenCode Config)',
+		models: []
+	},
 	anthropic: {
 		name: 'Anthropic',
 		models: [
