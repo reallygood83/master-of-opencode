@@ -7605,13 +7605,12 @@ var TerminalView = class extends import_obsidian2.ItemView {
     this.terminal.loadAddon(this.fitAddon);
     this.terminal.loadAddon(new import_xterm_addon_web_links.WebLinksAddon());
     this.terminal.open(this.terminalContainer);
-    setTimeout(() => {
-      if (!this.isDisposed)
-        this.fitAddon.fit();
-    }, 100);
     const resizeObserver = new ResizeObserver(() => {
       if (!this.isDisposed) {
-        this.fitAddon.fit();
+        requestAnimationFrame(() => {
+          this.fitAddon.fit();
+          this.notifyResize();
+        });
       }
     });
     resizeObserver.observe(this.terminalContainer);
@@ -7622,10 +7621,20 @@ var TerminalView = class extends import_obsidian2.ItemView {
     });
     await this.startSession();
   }
+  notifyResize() {
+    if (this.ptyProcess && this.ptyProcess.stdio && this.ptyProcess.stdio[3]) {
+      const { cols, rows } = this.terminal;
+      try {
+        this.ptyProcess.stdio[3].write(`R:${rows}:${cols}
+`);
+      } catch (e) {
+      }
+    }
+  }
   async startSession() {
     var _a, _b, _c;
     this.terminal.clear();
-    this.terminal.writeln("Initializing OpenCode Terminal...");
+    this.terminal.writeln("Initializing OpenCode Interactive Terminal...");
     const opencodePath = await ((_a = this.plugin.processManager) == null ? void 0 : _a.findOpenCodePath()) || "opencode";
     const model = this.plugin.settings.model.includes("/") ? this.plugin.settings.model : `${this.plugin.settings.provider}/${this.plugin.settings.model}`;
     try {
@@ -7638,39 +7647,63 @@ var TerminalView = class extends import_obsidian2.ItemView {
       env.TERM = "xterm-256color";
       env.COLORTERM = "truecolor";
       env.LANG = "en_US.UTF-8";
+      const { cols, rows } = this.terminal;
+      env.ROWS = rows.toString();
+      env.COLS = cols.toString();
       const args = ["-m", model];
       if (process.platform === "win32") {
-        this.terminal.writeln(`Starting OpenCode (Windows)...`);
         this.ptyProcess = (0, import_child_process2.spawn)(opencodePath, args, {
           cwd: this.app.vault.adapter.getBasePath(),
           env,
           shell: true
         });
       } else {
-        this.terminal.writeln(`Starting OpenCode PTY session...`);
-        const pythonScript = `import pty, sys; pty.spawn(["${opencodePath}", ${args.map((a) => `"${a}"`).join(", ")}])`;
-        this.ptyProcess = (0, import_child_process2.spawn)("python3", ["-c", pythonScript], {
+        const pythonScript = `
+import os,sys,pty,select,array,fcntl,termios
+def s(fd,r,c):
+ try:fcntl.ioctl(fd,termios.TIOCSWINSZ,array.array('h',[int(r),int(c),0,0]))
+ except:pass
+m,v=pty.openpty();s(m,os.environ.get('ROWS',24),os.environ.get('COLS',80));p=os.fork()
+if p==0:
+ os.setsid();os.dup2(v,0);os.dup2(v,1);os.dup2(v,2);os.close(m)
+ try:os.execvp(sys.argv[1],sys.argv[1:])
+ except:os._exit(1)
+else:
+ os.close(v)
+ try:
+  while 1:
+   ready,_,_=select.select([m,0,3],[],[])
+   if m in ready:
+    d=os.read(m,4096)
+    if not d:break
+    os.write(1,d)
+   if 0 in ready:
+    d=os.read(0,4096)
+    if not d:break
+    os.write(m,d)
+   if 3 in ready:
+    cmd=os.read(3,1024).decode().strip()
+    if cmd.startswith('R:'):
+     _,r,c=cmd.split(':');s(m,r,c)
+ except:pass
+`.trim().replace(/\n/g, ";");
+        this.ptyProcess = (0, import_child_process2.spawn)("python3", ["-c", pythonScript, opencodePath, ...args], {
           cwd: this.app.vault.adapter.getBasePath(),
-          env
+          env,
+          stdio: ["pipe", "pipe", "pipe", "pipe"]
+          // fd 3 is for resize commands
         });
       }
-      (_b = this.ptyProcess.stdout) == null ? void 0 : _b.on("data", (data) => {
-        this.terminal.write(data);
-      });
-      (_c = this.ptyProcess.stderr) == null ? void 0 : _c.on("data", (data) => {
-        this.terminal.write(data);
-      });
+      (_b = this.ptyProcess.stdout) == null ? void 0 : _b.on("data", (data) => this.terminal.write(data));
+      (_c = this.ptyProcess.stderr) == null ? void 0 : _c.on("data", (data) => this.terminal.write(data));
       this.ptyProcess.on("error", (err) => {
         this.terminal.writeln(`\r
 [Fatal Error]: ${err.message}`);
-        if (process.platform !== "win32") {
-          this.terminal.writeln("Please ensure python3 and opencode are in your PATH.");
-        }
       });
       this.ptyProcess.on("exit", (code, signal) => {
         this.terminal.writeln(`\r
 \r
---- Interaction Ended (Code: ${code}, Signal: ${signal}) ---`);
+--- Session Ended (Code: ${code}, Signal: ${signal}) ---`);
       });
       this.terminal.focus();
     } catch (e) {

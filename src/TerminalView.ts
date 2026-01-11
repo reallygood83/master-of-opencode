@@ -38,10 +38,10 @@ export class TerminalView extends ItemView {
         container.empty();
         container.addClass('opencode-terminal-container');
 
-        // Create terminal wrapper first to ensure toolbar overlays it
+        // Create terminal wrapper
         this.terminalContainer = container.createDiv({ cls: 'opencode-xterm-wrapper' });
 
-        // Create toolbar as an overlay
+        // Create toolbar as an overlay (very subtle)
         const toolbar = container.createDiv({ cls: 'opencode-terminal-toolbar' });
 
         const restartBtn = toolbar.createEl('button', {
@@ -82,15 +82,13 @@ export class TerminalView extends ItemView {
 
         this.terminal.open(this.terminalContainer);
 
-        // Initial fit with a small delay for DOM stability
-        setTimeout(() => {
-            if (!this.isDisposed) this.fitAddon.fit();
-        }, 100);
-
-        // Use ResizeObserver for responsive terminal sizing
+        // Resize observer for 100% reactive scaling
         const resizeObserver = new ResizeObserver(() => {
             if (!this.isDisposed) {
-                this.fitAddon.fit();
+                requestAnimationFrame(() => {
+                    this.fitAddon.fit();
+                    this.notifyResize();
+                });
             }
         });
         resizeObserver.observe(this.terminalContainer);
@@ -102,13 +100,24 @@ export class TerminalView extends ItemView {
             }
         });
 
-        // Start the process
+        // Start session
         await this.startSession();
+    }
+
+    private notifyResize() {
+        if (this.ptyProcess && (this.ptyProcess as any).stdio && (this.ptyProcess as any).stdio[3]) {
+            const { cols, rows } = this.terminal;
+            try {
+                (this.ptyProcess as any).stdio[3].write(`R:${rows}:${cols}\n`);
+            } catch (e) {
+                // Ignore pipe errors
+            }
+        }
     }
 
     async startSession(): Promise<void> {
         this.terminal.clear();
-        this.terminal.writeln('Initializing OpenCode Terminal...');
+        this.terminal.writeln('Initializing OpenCode Interactive Terminal...');
 
         const opencodePath = await this.plugin.processManager?.findOpenCodePath() || 'opencode';
         const model = this.plugin.settings.model.includes('/')
@@ -127,44 +136,67 @@ export class TerminalView extends ItemView {
             env.COLORTERM = 'truecolor';
             env.LANG = 'en_US.UTF-8';
 
-            // Use just the binary with model flag for interactive mode
+            // Set initial rows/cols for the bridge
+            const { cols, rows } = this.terminal;
+            env.ROWS = rows.toString();
+            env.COLS = cols.toString();
+
             const args = ['-m', model];
 
             if (process.platform === 'win32') {
-                this.terminal.writeln(`Starting OpenCode (Windows)...`);
                 this.ptyProcess = spawn(opencodePath, args, {
                     cwd: (this.app.vault.adapter as any).getBasePath(),
                     env: env,
                     shell: true
                 });
             } else {
-                this.terminal.writeln(`Starting OpenCode PTY session...`);
-                // Use python3 PTY bridge for a real TTY environment
-                const pythonScript = `import pty, sys; pty.spawn(["${opencodePath}", ${args.map(a => `"${a}"`).join(", ")}])`;
+                // Advaced Python PTY Bridge with Resize Support via FD 3
+                const pythonScript = `
+import os,sys,pty,select,array,fcntl,termios
+def s(fd,r,c):
+ try:fcntl.ioctl(fd,termios.TIOCSWINSZ,array.array('h',[int(r),int(c),0,0]))
+ except:pass
+m,v=pty.openpty();s(m,os.environ.get('ROWS',24),os.environ.get('COLS',80));p=os.fork()
+if p==0:
+ os.setsid();os.dup2(v,0);os.dup2(v,1);os.dup2(v,2);os.close(m)
+ try:os.execvp(sys.argv[1],sys.argv[1:])
+ except:os._exit(1)
+else:
+ os.close(v)
+ try:
+  while 1:
+   ready,_,_=select.select([m,0,3],[],[])
+   if m in ready:
+    d=os.read(m,4096)
+    if not d:break
+    os.write(1,d)
+   if 0 in ready:
+    d=os.read(0,4096)
+    if not d:break
+    os.write(m,d)
+   if 3 in ready:
+    cmd=os.read(3,1024).decode().strip()
+    if cmd.startswith('R:'):
+     _,r,c=cmd.split(':');s(m,r,c)
+ except:pass
+`.trim().replace(/\n/g, ';');
 
-                this.ptyProcess = spawn('python3', ['-c', pythonScript], {
+                this.ptyProcess = spawn('python3', ['-c', pythonScript, opencodePath, ...args], {
                     cwd: (this.app.vault.adapter as any).getBasePath(),
-                    env: env
+                    env: env,
+                    stdio: ['pipe', 'pipe', 'pipe', 'pipe'] // fd 3 is for resize commands
                 });
             }
 
-            this.ptyProcess.stdout?.on('data', (data) => {
-                this.terminal.write(data);
-            });
-
-            this.ptyProcess.stderr?.on('data', (data) => {
-                this.terminal.write(data);
-            });
+            this.ptyProcess.stdout?.on('data', (data) => this.terminal.write(data));
+            this.ptyProcess.stderr?.on('data', (data) => this.terminal.write(data));
 
             this.ptyProcess.on('error', (err) => {
                 this.terminal.writeln(`\r\n[Fatal Error]: ${err.message}`);
-                if (process.platform !== 'win32') {
-                    this.terminal.writeln('Please ensure python3 and opencode are in your PATH.');
-                }
             });
 
             this.ptyProcess.on('exit', (code, signal) => {
-                this.terminal.writeln(`\r\n\r\n--- Interaction Ended (Code: ${code}, Signal: ${signal}) ---`);
+                this.terminal.writeln(`\r\n\r\n--- Session Ended (Code: ${code}, Signal: ${signal}) ---`);
             });
 
             this.terminal.focus();

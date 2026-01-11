@@ -530,25 +530,36 @@
 }
 
 /* Terminal View Styles */
-.opencode-terminal-container {
-	height: 100% !important;
-	width: 100% !important;
-	display: flex;
-	flex-direction: column;
-	background-color: #1e1e1e;
-	overflow: hidden;
-	padding: 0 !important;
-	margin: 0 !important;
-	position: absolute;
-	top: 0;
-	left: 0;
+/* Sidebar Terminal Full Integration */
+.workspace-leaf-content[data-type="opencode-terminal-view"] .view-header {
+	display: none !important;
 }
 
-/* Force override Obsidian's view-content padding */
 .workspace-leaf-content[data-type="opencode-terminal-view"] .view-content {
 	padding: 0 !important;
 	margin: 0 !important;
-	overflow: hidden;
+	overflow: hidden !important;
+	display: flex !important;
+	flex-direction: column !important;
+	height: 100% !important;
+	width: 100% !important;
+}
+
+.opencode-terminal-container {
+	flex-grow: 1 !important;
+	height: 100% !important;
+	width: 100% !important;
+	display: flex !important;
+	flex-direction: column !important;
+	background-color: #1e1e1e !important;
+	overflow: hidden !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	position: absolute !important;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
 }
 
 .opencode-terminal-toolbar {
@@ -576,24 +587,30 @@
 }
 
 .opencode-xterm-wrapper {
+	flex: 1 !important;
 	width: 100% !important;
 	height: 100% !important;
-	flex-grow: 1;
-	overflow: hidden;
+	overflow: hidden !important;
 	padding: 0 !important;
 	margin: 0 !important;
-	position: relative;
-	background-color: #1e1e1e;
+	position: relative !important;
+	background-color: #1e1e1e !important;
 }
 
 .opencode-xterm-wrapper .terminal {
-	height: 100%;
-	padding: 10px;
-	/* Internal terminal padding for readability */
+	height: 100% !important;
+	padding: 4px !important;
+	/* Minimal padding for edge readability */
 }
 
 .opencode-xterm-wrapper .xterm-screen {
 	width: 100% !important;
+}
+
+/* Ensure the xterm scrollbar doesn't create gaps */
+.opencode-xterm-wrapper .xterm-viewport {
+	width: 100% !important;
+	overflow-y: auto !important;
 }
 
 /* Hide scrollbars in terminal but allow scrolling */
