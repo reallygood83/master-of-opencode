@@ -231,7 +231,7 @@ export class ProcessManager extends EventEmitter {
 
 		if (this.settings.provider !== 'default') {
 			const modelArg = `${this.settings.provider}/${this.settings.model}`;
-			args.splice(2, 0, '-m', modelArg);
+			args.splice(3, 0, '-m', modelArg);
 		}
 
 		if (this.state.sessionID) {

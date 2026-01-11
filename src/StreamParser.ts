@@ -72,10 +72,10 @@ export interface ParsedErrorEvent {
 	message: string;
 }
 
-export type ParsedEvent = 
-	| ParsedTextEvent 
-	| ParsedToolEvent 
-	| ParsedStepEvent 
+export type ParsedEvent =
+	| ParsedTextEvent
+	| ParsedToolEvent
+	| ParsedStepEvent
 	| ParsedSessionEvent
 	| ParsedErrorEvent;
 
@@ -147,6 +147,15 @@ export class StreamParser extends EventEmitter {
 				break;
 
 			case 'step_finish':
+				if (this.buffer.trim()) {
+					const pending = this.buffer.trim();
+					this.buffer = '';
+					this.emit('event', {
+						type: 'text',
+						content: pending,
+						messageID: 'flush-pre-finish'
+					} as ParsedTextEvent);
+				}
 				this.emit('event', {
 					type: 'step_finish',
 					reason: event.part.reason,
