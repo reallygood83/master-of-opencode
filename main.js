@@ -685,14 +685,11 @@ var ProcessManager = class extends import_events2.EventEmitter {
     const modelArg = this.settings.model.includes("/") ? this.settings.model : `${this.settings.provider}/${this.settings.model}`;
     const args = [
       "run",
-      ".",
       "--format",
       "json",
       "-m",
       modelArg,
-      "--prompt",
       message
-      // Use --prompt flag to avoid ambiguity
     ];
     if (this.state.sessionID) {
       args.push("-s", this.state.sessionID);
