@@ -298,9 +298,10 @@ export class ProcessManager extends EventEmitter {
 
 		const args = [
 			'run',
+			'.',
 			'--format', 'json',
 			'-m', modelArg,
-			message
+			'--prompt', message // Use --prompt flag to avoid ambiguity
 		];
 
 		if (this.state.sessionID) {
