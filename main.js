@@ -7593,7 +7593,7 @@ var TerminalView = class extends import_obsidian2.ItemView {
       convertEol: true,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       fontSize: 12,
-      // Slightly smaller for sidebar
+      allowProposedApi: true,
       theme: {
         background: "#1e1e1e",
         foreground: "#f0f0f0",
@@ -7605,10 +7605,14 @@ var TerminalView = class extends import_obsidian2.ItemView {
     this.terminal.loadAddon(this.fitAddon);
     this.terminal.loadAddon(new import_xterm_addon_web_links.WebLinksAddon());
     this.terminal.open(this.terminalContainer);
+    setTimeout(() => {
+      if (!this.isDisposed)
+        this.fitAddon.fit();
+    }, 100);
     const resizeObserver = new ResizeObserver(() => {
-      if (this.isDisposed)
-        return;
-      this.fitAddon.fit();
+      if (!this.isDisposed) {
+        this.fitAddon.fit();
+      }
     });
     resizeObserver.observe(this.terminalContainer);
     this.terminal.onData((data) => {

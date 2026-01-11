@@ -66,7 +66,8 @@ export class TerminalView extends ItemView {
             cursorBlink: true,
             convertEol: true,
             fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-            fontSize: 12, // Slightly smaller for sidebar
+            fontSize: 12,
+            allowProposedApi: true,
             theme: {
                 background: '#1e1e1e',
                 foreground: '#f0f0f0',
@@ -81,10 +82,16 @@ export class TerminalView extends ItemView {
 
         this.terminal.open(this.terminalContainer);
 
-        // Use ResizeObserver for precise fitting
+        // Initial fit with a small delay for DOM stability
+        setTimeout(() => {
+            if (!this.isDisposed) this.fitAddon.fit();
+        }, 100);
+
+        // Use ResizeObserver for responsive terminal sizing
         const resizeObserver = new ResizeObserver(() => {
-            if (this.isDisposed) return;
-            this.fitAddon.fit();
+            if (!this.isDisposed) {
+                this.fitAddon.fit();
+            }
         });
         resizeObserver.observe(this.terminalContainer);
 
