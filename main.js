@@ -140,7 +140,7 @@ var OpenCodeSettingTab = class extends import_obsidian.PluginSettingTab {
           });
         } else {
           statusEl.createEl("span", {
-            text: "\u274C OpenCode not found. Please install.",
+            text: result.error ? `\u274C Error: ${result.error}` : "\u274C OpenCode not found. Please install.",
             cls: "opencode-status-stopped"
           });
         }
@@ -517,26 +517,28 @@ var ProcessManager = class extends import_events2.EventEmitter {
       "/usr/bin/opencode",
       `${process.env.HOME}/.local/bin/opencode`,
       `${process.env.HOME}/bin/opencode`,
-      // Also check the specific developer path if user is developing locally
       `${process.env.HOME}/Developer/opencode-patch/opencode/packages/opencode/dist/opencode-darwin-arm64/bin/opencode`
     ];
-    const { exec } = await import("child_process");
-    const { promisify } = await import("util");
-    const execAsync = promisify(exec);
+    const fs = await import("fs");
+    const { constants } = fs;
+    const access = fs.promises.access;
+    for (const path of possiblePaths) {
+      try {
+        await access(path, constants.X_OK);
+        return path;
+      } catch (e) {
+        continue;
+      }
+    }
     try {
+      const { exec } = await import("child_process");
+      const { promisify } = await import("util");
+      const execAsync = promisify(exec);
       const { stdout } = await execAsync("which opencode");
       if (stdout && stdout.trim()) {
         return stdout.trim();
       }
     } catch (e) {
-    }
-    for (const path of possiblePaths) {
-      try {
-        await execAsync(`ls "${path}"`);
-        return path;
-      } catch (e) {
-        continue;
-      }
     }
     return "opencode";
   }
@@ -597,8 +599,8 @@ var ProcessManager = class extends import_events2.EventEmitter {
         version: stdout.trim(),
         path
       };
-    } catch (e) {
-      return { installed: false };
+    } catch (error) {
+      return { installed: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
   async getAvailableModels() {

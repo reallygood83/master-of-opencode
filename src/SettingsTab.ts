@@ -95,7 +95,7 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 							});
 						} else {
 							statusEl.createEl('span', {
-								text: '❌ OpenCode not found. Please install.',
+								text: result.error ? `❌ Error: ${result.error}` : '❌ OpenCode not found. Please install.',
 								cls: 'opencode-status-stopped'
 							});
 						}

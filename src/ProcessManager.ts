@@ -81,44 +81,42 @@ export class ProcessManager extends EventEmitter {
 			return this.settings.opencodePath;
 		}
 
-		// List of possible paths to check
 		const possiblePaths = [
 			'/opt/homebrew/bin/opencode',
 			'/usr/local/bin/opencode',
 			'/usr/bin/opencode',
 			`${process.env.HOME}/.local/bin/opencode`,
 			`${process.env.HOME}/bin/opencode`,
-			// Also check the specific developer path if user is developing locally
 			`${process.env.HOME}/Developer/opencode-patch/opencode/packages/opencode/dist/opencode-darwin-arm64/bin/opencode`
 		];
 
-		const { exec } = await import('child_process');
-		const { promisify } = await import('util');
-		const execAsync = promisify(exec);
+		const fs = await import('fs');
+		const { constants } = fs;
+		const access = fs.promises.access;
 
-		// First, check if 'opencode' is in the PATH available to the shell
-		try {
-			// If 'which' succeeds, it means it's in the path
-			const { stdout } = await execAsync('which opencode');
-			if (stdout && stdout.trim()) {
-				return stdout.trim();
-			}
-		} catch (e) {
-			// Ignore error if not found in PATH via 'which'
-		}
-
-		// Then check specific standard locations
+		// Check explicit paths first using fs (more reliable than exec ls)
 		for (const path of possiblePaths) {
 			try {
-				await execAsync(`ls "${path}"`);
+				await access(path, constants.X_OK);
 				return path;
 			} catch {
 				continue;
 			}
 		}
 
-		// Fallback to just "opencode" and hope it's in the PATH inherited by Obsidian
-		// If fails, user should set the path in settings
+		// Fallback to 'which' to check PATH
+		try {
+			const { exec } = await import('child_process');
+			const { promisify } = await import('util');
+			const execAsync = promisify(exec);
+			const { stdout } = await execAsync('which opencode');
+			if (stdout && stdout.trim()) {
+				return stdout.trim();
+			}
+		} catch (e) {
+			// Ignore
+		}
+
 		return 'opencode';
 	}
 
@@ -171,7 +169,7 @@ export class ProcessManager extends EventEmitter {
 		}
 	}
 
-	async checkOpenCodeInstalled(): Promise<{ installed: boolean; version?: string; path?: string }> {
+	async checkOpenCodeInstalled(): Promise<{ installed: boolean; version?: string; path?: string; error?: string }> {
 		try {
 			const { exec } = await import('child_process');
 			const { promisify } = await import('util');
@@ -185,8 +183,8 @@ export class ProcessManager extends EventEmitter {
 				version: stdout.trim(),
 				path
 			};
-		} catch {
-			return { installed: false };
+		} catch (error) {
+			return { installed: false, error: error instanceof Error ? error.message : String(error) };
 		}
 	}
 
