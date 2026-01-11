@@ -45,18 +45,73 @@ export class OpenCodeSettingTab extends PluginSettingTab {
 				.setCta()
 				.onClick(async () => {
 					try {
-						const path = await this.plugin.processManager?.findOpenCodePath();
+						if (!this.plugin.processManager) {
+							throw new Error('ProcessManager not initialized');
+						}
+
+						const result = await this.plugin.processManager.checkOpenCodeInstalled();
+
+						statusEl.empty();
+
+						if (result.installed) {
+							statusEl.createEl('span', {
+								text: `✅ OpenCode found at: ${result.path} (v${result.version})`,
+								cls: 'opencode-status-running'
+							});
+						} else {
+							statusEl.createEl('span', {
+								text: '❌ OpenCode not found. Please install.',
+								cls: 'opencode-status-stopped'
+							});
+						}
+					} catch (error) {
 						statusEl.empty();
 						statusEl.createEl('span', {
-							text: `✅ OpenCode found at: ${path}`,
-							cls: 'opencode-status-running'
-						});
-					} catch {
-						statusEl.empty();
-						statusEl.createEl('span', {
-							text: '❌ OpenCode not found. Please install terminal component.',
+							text: `❌ Error checking: ${error}`,
 							cls: 'opencode-status-stopped'
 						});
+					}
+				}))
+			.addButton(button => button
+				.setButtonText('📥 Install OpenCode')
+				.setWarning()
+				.onClick(async () => {
+					button.setDisabled(true);
+					button.setButtonText('Installing...');
+
+					try {
+						if (!this.plugin.processManager) {
+							throw new Error('ProcessManager not initialized');
+						}
+
+						const result = await this.plugin.processManager.installOpenCode();
+
+						statusEl.empty();
+
+						if (result.success) {
+							this.plugin.settings.opencodePath = result.path || '';
+							await this.plugin.saveSettings();
+
+							statusEl.createEl('span', {
+								text: `✅ ${result.message}`,
+								cls: 'opencode-status-running'
+							});
+							this.display();
+						} else {
+							statusEl.createEl('span', {
+								text: `❌ ${result.message}`,
+								cls: 'opencode-status-stopped'
+							});
+						}
+					} catch (error) {
+						statusEl.empty();
+						statusEl.createEl('span', {
+							text: `❌ Installation failed: ${error}`,
+							cls: 'opencode-status-stopped'
+						});
+					} finally {
+						button.setDisabled(false);
+						button.setButtonText('📥 Install OpenCode');
 					}
 				}));
 

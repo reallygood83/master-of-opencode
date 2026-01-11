@@ -122,6 +122,74 @@ export class ProcessManager extends EventEmitter {
 		return 'opencode';
 	}
 
+	async installOpenCode(): Promise<{ success: boolean; message: string; path?: string }> {
+		const { exec } = await import('child_process');
+		const { promisify } = await import('util');
+		const execAsync = promisify(exec);
+
+		try {
+			await execAsync('npm install -g @opencode/cli', { timeout: 120000 });
+			const { stdout } = await execAsync('which opencode');
+			const path = stdout.trim();
+
+			if (path) {
+				return {
+					success: true,
+					message: 'OpenCode CLI installed successfully via npm',
+					path
+				};
+			} else {
+				return {
+					success: false,
+					message: 'Installation completed but executable not found in PATH'
+				};
+			}
+		} catch (npmError) {
+			try {
+				await execAsync('curl -fsSL https://install.opencode.ai | sh', { timeout: 120000 });
+				const { stdout } = await execAsync('which opencode');
+				const path = stdout.trim();
+
+				if (path) {
+					return {
+						success: true,
+						message: 'OpenCode CLI installed successfully via installer script',
+						path
+					};
+				} else {
+					return {
+						success: false,
+						message: 'Installation completed but executable not found in PATH'
+					};
+				}
+			} catch (curlError) {
+				return {
+					success: false,
+					message: `Failed to install OpenCode CLI. Please install manually from https://opencode.ai or run: npm install -g @opencode/cli`
+				};
+			}
+		}
+	}
+
+	async checkOpenCodeInstalled(): Promise<{ installed: boolean; version?: string; path?: string }> {
+		try {
+			const { exec } = await import('child_process');
+			const { promisify } = await import('util');
+			const execAsync = promisify(exec);
+
+			const path = await this.findOpenCodePath();
+			const { stdout } = await execAsync(`"${path}" --version`);
+
+			return {
+				installed: true,
+				version: stdout.trim(),
+				path
+			};
+		} catch {
+			return { installed: false };
+		}
+	}
+
 	async start(): Promise<void> {
 		this.state.isRunning = true;
 		this.emit('started', this.state);
