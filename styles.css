@@ -528,6 +528,7 @@
 		transform: translateX(100%);
 	}
 }
+
 /* Terminal View Styles */
 .opencode-terminal-container {
 	height: 100%;
@@ -541,16 +542,31 @@
 	display: flex;
 	justify-content: flex-end;
 	align-items: center;
-	padding: 8px;
-	background-color: var(--background-secondary);
-	border-bottom: 1px solid var(--background-modifier-border);
-	gap: 8px;
+	padding: 4px;
+	position: absolute;
+	top: 8px;
+	right: 18px;
+	z-index: 100;
+	gap: 4px;
+	opacity: 0.3;
+	transition: opacity 0.3s ease;
+}
+
+.opencode-terminal-toolbar:hover {
+	opacity: 1;
+}
+
+.opencode-terminal-toolbar button {
+	padding: 2px 8px;
+	font-size: 0.8em;
+	height: unset;
 }
 
 .opencode-xterm-wrapper {
 	flex-grow: 1;
 	overflow: hidden;
-	padding: 8px;
+	padding: 0;
+	margin: 0;
 	position: relative;
 }
 
@@ -563,6 +579,7 @@
 .opencode-terminal-toolbar .clickable-icon {
 	color: var(--text-muted);
 }
+
 .opencode-terminal-toolbar .clickable-icon:hover {
 	color: var(--text-normal);
 }

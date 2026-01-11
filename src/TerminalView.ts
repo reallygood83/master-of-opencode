@@ -38,20 +38,22 @@ export class TerminalView extends ItemView {
         container.empty();
         container.addClass('opencode-terminal-container');
 
-        // Create toolbar
+        // Create terminal wrapper first to ensure toolbar overlays it
+        this.terminalContainer = container.createDiv({ cls: 'opencode-xterm-wrapper' });
+
+        // Create toolbar as an overlay
         const toolbar = container.createDiv({ cls: 'opencode-terminal-toolbar' });
 
         const restartBtn = toolbar.createEl('button', {
-            text: 'Restart Session',
+            text: 'Restart',
             cls: 'mod-cta'
         });
         restartBtn.onclick = () => this.restartSession();
 
         const settingsBtn = toolbar.createEl('button', {
-            text: 'Settings',
             cls: 'clickable-icon'
         });
-        settingsBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
+        settingsBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
         settingsBtn.onclick = () => {
             // @ts-ignore
             this.app.setting.open();
@@ -59,36 +61,17 @@ export class TerminalView extends ItemView {
             this.app.setting.openTabById(this.plugin.manifest.id);
         };
 
-        // Create terminal wrapper
-        this.terminalContainer = container.createDiv({ cls: 'opencode-xterm-wrapper' });
-
         // Initialize xterm
         this.terminal = new Terminal({
             cursorBlink: true,
             convertEol: true,
             fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-            fontSize: 13,
+            fontSize: 12, // Slightly smaller for sidebar
             theme: {
                 background: '#1e1e1e',
                 foreground: '#f0f0f0',
                 cursor: '#ffffff',
-                selectionBackground: '#5da5f533',
-                black: '#000000',
-                blue: '#2472c8',
-                cyan: '#11a8cd',
-                green: '#0dbc79',
-                magenta: '#bc3fbc',
-                red: '#cd3131',
-                white: '#e5e5e5',
-                yellow: '#e5e510',
-                brightBlack: '#666666',
-                brightBlue: '#3b8eea',
-                brightCyan: '#29b8db',
-                brightGreen: '#23d18b',
-                brightMagenta: '#d670d6',
-                brightRed: '#f14c4c',
-                brightWhite: '#e5e5e5',
-                brightYellow: '#f5f543'
+                selectionBackground: '#5da5f533'
             }
         });
 
@@ -97,12 +80,13 @@ export class TerminalView extends ItemView {
         this.terminal.loadAddon(new WebLinksAddon());
 
         this.terminal.open(this.terminalContainer);
-        this.fitAddon.fit();
 
-        // Handle resize
-        this.registerDomEvent(window, 'resize', () => {
+        // Use ResizeObserver for precise fitting
+        const resizeObserver = new ResizeObserver(() => {
+            if (this.isDisposed) return;
             this.fitAddon.fit();
         });
+        resizeObserver.observe(this.terminalContainer);
 
         // Handle data input
         this.terminal.onData(data => {
