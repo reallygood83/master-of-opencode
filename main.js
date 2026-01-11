@@ -679,15 +679,13 @@ var ProcessManager = class extends import_events2.EventEmitter {
     const opencodePath = await this.findOpenCodePath();
     const args = [
       "run",
-      ".",
       "--format",
       "json",
-      "--prompt",
       message
     ];
     if (this.settings.provider !== "default") {
       const modelArg = `${this.settings.provider}/${this.settings.model}`;
-      args.splice(4, 0, "-m", modelArg);
+      args.splice(2, 0, "-m", modelArg);
     }
     if (this.state.sessionID) {
       args.push("-s", this.state.sessionID);
@@ -715,6 +713,13 @@ var ProcessManager = class extends import_events2.EventEmitter {
         const errorText = data.toString();
         console.error("OpenCode stderr:", errorText);
         this.emit("stderr", errorText);
+        if (errorText.includes("API key") || errorText.includes("auth")) {
+          this.emit("error", new Error(`Authentication failed: ${errorText.trim()}`));
+        } else if (errorText.includes("clipboard")) {
+          this.emit("error", new Error(`Clipboard error: ${errorText.trim()} - Please select an image-capable model`));
+        } else if (errorText.includes("model")) {
+          this.emit("error", new Error(`Model error: ${errorText.trim()}`));
+        }
       });
       this.process.on("exit", (code, signal) => {
         this.parser.flush();
@@ -1131,7 +1136,25 @@ var OpenCodeChatView = class extends import_obsidian2.ItemView {
     this.plugin.processManager.on("error", (error) => {
       this.isStreaming = false;
       const errorMsg = error instanceof Error ? error.message : error;
-      this.addSystemMessage(`\u274C Error: ${errorMsg}`);
+      if (errorMsg.includes("API key") || errorMsg.includes("auth")) {
+        this.addSystemMessage(`\u{1F511} Authentication Error
+
+${errorMsg}
+
+\u{1F4A1} Please check your OpenCode CLI authentication:
+1. Open Settings > Authentication Status
+2. Ensure your provider is logged in
+3. Or run: opencode auth login <provider>`);
+      } else if (errorMsg.includes("clipboard")) {
+        this.addSystemMessage(`\u{1F5BC}\uFE0F Image Input Error
+
+${errorMsg}
+
+\u{1F4A1} Please select an image-capable model:
+Available models marked with \u{1F5BC}\uFE0F in the dropdown above.`);
+      } else {
+        this.addSystemMessage(`\u274C Error: ${errorMsg}`);
+      }
       this.updateStatusIndicator();
     });
   }

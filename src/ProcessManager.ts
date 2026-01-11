@@ -294,14 +294,13 @@ export class ProcessManager extends EventEmitter {
 
 		const args = [
 			'run',
-			'.',
 			'--format', 'json',
-			'--prompt', message
+			message
 		];
 
 		if (this.settings.provider !== 'default') {
 			const modelArg = `${this.settings.provider}/${this.settings.model}`;
-			args.splice(4, 0, '-m', modelArg);
+			args.splice(2, 0, '-m', modelArg);
 		}
 
 		if (this.state.sessionID) {
@@ -335,6 +334,14 @@ export class ProcessManager extends EventEmitter {
 				const errorText = data.toString();
 				console.error('OpenCode stderr:', errorText);
 				this.emit('stderr', errorText);
+
+				if (errorText.includes('API key') || errorText.includes('auth')) {
+					this.emit('error', new Error(`Authentication failed: ${errorText.trim()}`));
+				} else if (errorText.includes('clipboard')) {
+					this.emit('error', new Error(`Clipboard error: ${errorText.trim()} - Please select an image-capable model`));
+				} else if (errorText.includes('model')) {
+					this.emit('error', new Error(`Model error: ${errorText.trim()}`));
+				}
 			});
 
 			this.process.on('exit', (code, signal) => {

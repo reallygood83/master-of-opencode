@@ -307,7 +307,15 @@ export class OpenCodeChatView extends ItemView {
 		this.plugin.processManager.on('error', (error: Error | string) => {
 			this.isStreaming = false;
 			const errorMsg = error instanceof Error ? error.message : error;
-			this.addSystemMessage(`❌ Error: ${errorMsg}`);
+
+			if (errorMsg.includes('API key') || errorMsg.includes('auth')) {
+				this.addSystemMessage(`🔑 Authentication Error\n\n${errorMsg}\n\n💡 Please check your OpenCode CLI authentication:\n1. Open Settings > Authentication Status\n2. Ensure your provider is logged in\n3. Or run: opencode auth login <provider>`);
+			} else if (errorMsg.includes('clipboard')) {
+				this.addSystemMessage(`🖼️ Image Input Error\n\n${errorMsg}\n\n💡 Please select an image-capable model:\nAvailable models marked with 🖼️ in the dropdown above.`);
+			} else {
+				this.addSystemMessage(`❌ Error: ${errorMsg}`);
+			}
+
 			this.updateStatusIndicator();
 		});
 	}
