@@ -15,6 +15,8 @@ export class TerminalView extends ItemView {
     private ptyProcess: ChildProcess | null = null;
     private terminalContainer: HTMLElement;
     private isDisposed: boolean = false;
+    private resizeObserver: ResizeObserver | null = null;
+    private layoutChangeHandler: () => void;
 
     constructor(leaf: WorkspaceLeaf, plugin: OpenCodePlugin) {
         super(leaf);
@@ -82,16 +84,22 @@ export class TerminalView extends ItemView {
 
         this.terminal.open(this.terminalContainer);
 
-        // Resize observer for 100% reactive scaling
-        const resizeObserver = new ResizeObserver(() => {
+        this.resizeObserver = new ResizeObserver(() => {
             if (!this.isDisposed) {
-                requestAnimationFrame(() => {
-                    this.fitAddon.fit();
-                    this.notifyResize();
-                });
+                this.debouncedFit();
             }
         });
-        resizeObserver.observe(this.terminalContainer);
+        this.resizeObserver.observe(this.terminalContainer);
+
+        this.layoutChangeHandler = () => {
+            if (!this.isDisposed) {
+                this.debouncedFit();
+            }
+        };
+        this.app.workspace.on('layout-change', this.layoutChangeHandler);
+        this.app.workspace.on('resize', this.layoutChangeHandler);
+
+        this.performInitialFit();
 
         // Handle data input
         this.terminal.onData(data => {
@@ -113,6 +121,43 @@ export class TerminalView extends ItemView {
                 // Ignore pipe errors
             }
         }
+    }
+
+    private fitTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    private debouncedFit() {
+        if (this.fitTimeoutId) {
+            clearTimeout(this.fitTimeoutId);
+        }
+        this.fitTimeoutId = setTimeout(() => {
+            if (!this.isDisposed) {
+                requestAnimationFrame(() => {
+                    try {
+                        this.fitAddon.fit();
+                        this.notifyResize();
+                    } catch {
+                    }
+                });
+            }
+        }, 50);
+    }
+
+    private performInitialFit() {
+        const fitWithRetry = (attempts: number) => {
+            if (this.isDisposed || attempts <= 0) return;
+            
+            requestAnimationFrame(() => {
+                try {
+                    this.fitAddon.fit();
+                    this.notifyResize();
+                } catch {
+                }
+                
+                setTimeout(() => fitWithRetry(attempts - 1), 100);
+            });
+        };
+
+        setTimeout(() => fitWithRetry(5), 50);
     }
 
     async startSession(): Promise<void> {
@@ -218,6 +263,20 @@ while True:
 
     async onClose(): Promise<void> {
         this.isDisposed = true;
+        
+        if (this.fitTimeoutId) {
+            clearTimeout(this.fitTimeoutId);
+        }
+        
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
+        
+        if (this.layoutChangeHandler) {
+            this.app.workspace.off('layout-change', this.layoutChangeHandler);
+            this.app.workspace.off('resize', this.layoutChangeHandler);
+        }
+        
         if (this.ptyProcess) {
             this.ptyProcess.kill();
         }

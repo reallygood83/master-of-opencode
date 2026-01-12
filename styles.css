@@ -618,6 +618,41 @@
 	overflow-y: auto !important;
 }
 
+/* CRITICAL FIX: Force xterm to respect container boundaries */
+.opencode-xterm-wrapper .xterm {
+	width: 100% !important;
+	max-width: 100% !important;
+	overflow: hidden !important;
+}
+
+.opencode-xterm-wrapper .xterm-screen {
+	width: 100% !important;
+	max-width: 100% !important;
+	overflow: hidden !important;
+}
+
+.opencode-xterm-wrapper .xterm-rows {
+	width: 100% !important;
+	max-width: 100% !important;
+	overflow: hidden !important;
+}
+
+.opencode-xterm-wrapper .xterm-screen canvas {
+	max-width: 100% !important;
+}
+
+.opencode-xterm-wrapper .xterm-text-layer {
+	width: 100% !important;
+	max-width: 100% !important;
+	overflow: hidden !important;
+}
+
+.opencode-xterm-wrapper .xterm-helper-textarea {
+	position: absolute !important;
+	opacity: 0 !important;
+	left: -9999px !important;
+}
+
 /* Ensure settings button looks right */
 .opencode-terminal-toolbar .clickable-icon {
 	color: var(--text-muted);

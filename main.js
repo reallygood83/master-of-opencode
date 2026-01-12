@@ -7558,6 +7558,8 @@ var TerminalView = class extends import_obsidian2.ItemView {
     super(leaf);
     this.ptyProcess = null;
     this.isDisposed = false;
+    this.resizeObserver = null;
+    this.fitTimeoutId = null;
     this.plugin = plugin;
   }
   getViewType() {
@@ -7605,15 +7607,20 @@ var TerminalView = class extends import_obsidian2.ItemView {
     this.terminal.loadAddon(this.fitAddon);
     this.terminal.loadAddon(new import_xterm_addon_web_links.WebLinksAddon());
     this.terminal.open(this.terminalContainer);
-    const resizeObserver = new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver(() => {
       if (!this.isDisposed) {
-        requestAnimationFrame(() => {
-          this.fitAddon.fit();
-          this.notifyResize();
-        });
+        this.debouncedFit();
       }
     });
-    resizeObserver.observe(this.terminalContainer);
+    this.resizeObserver.observe(this.terminalContainer);
+    this.layoutChangeHandler = () => {
+      if (!this.isDisposed) {
+        this.debouncedFit();
+      }
+    };
+    this.app.workspace.on("layout-change", this.layoutChangeHandler);
+    this.app.workspace.on("resize", this.layoutChangeHandler);
+    this.performInitialFit();
     this.terminal.onData((data) => {
       if (this.ptyProcess && this.ptyProcess.stdin) {
         this.ptyProcess.stdin.write(data);
@@ -7630,6 +7637,37 @@ var TerminalView = class extends import_obsidian2.ItemView {
       } catch (e) {
       }
     }
+  }
+  debouncedFit() {
+    if (this.fitTimeoutId) {
+      clearTimeout(this.fitTimeoutId);
+    }
+    this.fitTimeoutId = setTimeout(() => {
+      if (!this.isDisposed) {
+        requestAnimationFrame(() => {
+          try {
+            this.fitAddon.fit();
+            this.notifyResize();
+          } catch (e) {
+          }
+        });
+      }
+    }, 50);
+  }
+  performInitialFit() {
+    const fitWithRetry = (attempts) => {
+      if (this.isDisposed || attempts <= 0)
+        return;
+      requestAnimationFrame(() => {
+        try {
+          this.fitAddon.fit();
+          this.notifyResize();
+        } catch (e) {
+        }
+        setTimeout(() => fitWithRetry(attempts - 1), 100);
+      });
+    };
+    setTimeout(() => fitWithRetry(5), 50);
   }
   async startSession() {
     var _a, _b, _c;
@@ -7720,6 +7758,16 @@ while True:
   }
   async onClose() {
     this.isDisposed = true;
+    if (this.fitTimeoutId) {
+      clearTimeout(this.fitTimeoutId);
+    }
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+    if (this.layoutChangeHandler) {
+      this.app.workspace.off("layout-change", this.layoutChangeHandler);
+      this.app.workspace.off("resize", this.layoutChangeHandler);
+    }
     if (this.ptyProcess) {
       this.ptyProcess.kill();
     }
